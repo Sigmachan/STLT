@@ -101,6 +101,11 @@ from settings.manager import (
     init_settings,
 )
 from steam_utils import detect_steam_install_path, get_game_install_path_response, open_game_folder
+from steam_version import (
+    get_steam_version_info as _sv_info,
+    set_steam_update_block as _sv_set_block,
+    list_steam_cfg_backups as _sv_backups,
+)
 
 # ── New modules (v8.2+) ──────────────────────────────────────────────
 from batch import start_batch as _batch_start, get_batch_status as _batch_status, cancel_batch as _batch_cancel, resume_batch as _batch_resume, pause_batch as _batch_pause, unpause_batch as _batch_unpause, skip_batch_item as _batch_skip_item
@@ -625,6 +630,21 @@ def DetectDepotConflicts(contentScriptQuery: str = "") -> str:
 def GetSteamProcessInfo(contentScriptQuery: str = "") -> str:
     """Check if Steam is running, show PID and memory."""
     return get_steam_process_info()
+
+
+def GetSteamVersionInfo(contentScriptQuery: str = "") -> str:
+    """Steam build, SteamTools-compatibility and auto-update block state."""
+    return _sv_info()
+
+
+def SetSteamUpdateBlock(enabled: bool = True, contentScriptQuery: str = "") -> str:
+    """Block or unblock Steam self-update via steam.cfg (reversible, backed up)."""
+    return _sv_set_block(bool(enabled))
+
+
+def ListSteamCfgBackups(contentScriptQuery: str = "") -> str:
+    """List steam.cfg backups created by the version manager."""
+    return _sv_backups()
 
 
 def GetQuickDashboard(contentScriptQuery: str = "") -> str:
