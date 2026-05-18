@@ -106,6 +106,10 @@ from steam_version import (
     set_steam_update_block as _sv_set_block,
     list_steam_cfg_backups as _sv_backups,
 )
+from cloud_fix import (
+    diagnose_cloud_fix as _cf_diagnose,
+    remove_stella_fallback as _cf_remove_stella,
+)
 
 # ── New modules (v8.2+) ──────────────────────────────────────────────
 from batch import start_batch as _batch_start, get_batch_status as _batch_status, cancel_batch as _batch_cancel, resume_batch as _batch_resume, pause_batch as _batch_pause, unpause_batch as _batch_unpause, skip_batch_item as _batch_skip_item
@@ -645,6 +649,16 @@ def SetSteamUpdateBlock(enabled: bool = True, contentScriptQuery: str = "") -> s
 def ListSteamCfgBackups(contentScriptQuery: str = "") -> str:
     """List steam.cfg backups created by the version manager."""
     return _sv_backups()
+
+
+def DiagnoseCloudFix(contentScriptQuery: str = "") -> str:
+    """Read-only SteamTools cloud-save / fallback state diagnostic."""
+    return _cf_diagnose()
+
+
+def RemoveStellaFallback(contentScriptQuery: str = "") -> str:
+    """Quarantine obsolete stella fallback remnants (reversible)."""
+    return _cf_remove_stella()
 
 
 def GetQuickDashboard(contentScriptQuery: str = "") -> str:
