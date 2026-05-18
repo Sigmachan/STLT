@@ -59,3 +59,56 @@ ltsteamplugin-ultimate/
 │   ├── steamdb-webkit.css
 │   └── themes/                  # 11 CSS themes
 └── .millennium/Dist/            # Compiled frontend
+```
+
+---
+
+### 🆕 Recent Updates (Maintenance, Compatibility & Safety)
+
+These were added on top of the Ultimate Edition base:
+
+* **Millennium 2.36+ / 3.0 compatibility fix** — `_load()` is now non-blocking:
+  all network I/O (applist, GitHub, API manifest, key donation) runs in a
+  background thread so `Millennium.ready()` is reached immediately.
+  Previously a slow applist download made Millennium flag the plugin as
+  *failed to load*. `add_browser_js` / `version()` calls are now fault-tolerant.
+* **Steam Version Manager** (`GetSteamVersionInfo`, `SetSteamUpdateBlock`,
+  `ListSteamCfgBackups`) — detects the installed Steam client build, flags
+  SteamTools compatibility, and blocks/unblocks Steam self-update via
+  `steam.cfg`. Fully reversible, backs up the previous `steam.cfg`.
+* **SteamTools Cloud-Save diagnostic** (`DiagnoseCloudFix`,
+  `RemoveStellaFallback`) — read-only health check of the SteamTools cloud
+  hijack/fallback state (hash check of helper DLLs, stale *stella* fallback
+  detection) plus a reversible quarantine of obsolete fallback files.
+* **Config-write hardening** — `steam.cfg` is written atomically (temp +
+  `os.replace` + `fsync`); destructive actions refuse to run while Steam is
+  running, to protect your own configuration from corruption.
+
+> Secrets hygiene: API keys / tokens / cookies are **never** committed —
+> `.gitignore` excludes `*.token`, `*.pat`, `.env*`, `secrets.json`,
+> `credentials.json`. Keep your keys local.
+
+---
+
+<a id="русская-версия"></a>
+# 🇷🇺 LuaTools Ultimate — что добавлено
+
+### 🆕 Свежие обновления (стабильность, совместимость, безопасность)
+
+* **Фикс совместимости с Millennium 2.36+ / 3.0** — `_load()` больше не
+  блокирует поток: вся сеть (applist, GitHub, манифест API, донат ключей)
+  ушла в фоновый поток, `Millennium.ready()` достигается мгновенно. Раньше
+  медленная загрузка applist приводила к «failed to load». Вызовы
+  `add_browser_js` / `version()` сделаны отказоустойчивыми.
+* **Steam Version Manager** — детект билда Steam, проверка совместимости с
+  SteamTools, блокировка/разблокировка авто-апдейта через `steam.cfg`
+  (реверсивно, с бэкапом).
+* **SteamTools Cloud-Save диагностика** — read-only проверка состояния
+  cloud-hijack/fallback (хеш-проверка helper-DLL, детект устаревших
+  *stella*-остатков) + реверсивный карантин устаревших файлов.
+* **Харднинг записи конфигов** — `steam.cfg` пишется атомарно; деструктивные
+  действия отказываются работать при запущенном Steam, чтобы не покорёжить
+  твой конфиг.
+
+> Секреты не коммитятся: `.gitignore` исключает `*.token`, `*.pat`, `.env*`,
+> `secrets.json`, `credentials.json`. Ключи держи локально.

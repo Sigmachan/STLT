@@ -19,10 +19,14 @@ update_pending.json
 # Secrets — never commit
 *.token
 *.pat
+*.secret
+*.creds
 .env
 .env.*
 secrets.json
 credentials.json
+keys.json
+auth.json
 
 # OS / editor
 Thumbs.db
