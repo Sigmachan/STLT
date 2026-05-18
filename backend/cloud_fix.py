@@ -26,6 +26,7 @@ from typing import Any, Dict, List
 
 from logger import logger as _logger
 from steam_utils import detect_steam_install_path
+from steam_version import _steam_is_running
 
 try:
     import Millennium  # type: ignore
@@ -145,6 +146,13 @@ def remove_stella_fallback() -> str:
         root = _steam_root()
         if not root or not os.path.isdir(root):
             return json.dumps({"success": False, "error": "Steam installation not found"})
+
+        if _steam_is_running():
+            return json.dumps({
+                "success": False,
+                "error": "Steam is running — close Steam fully, then retry.",
+                "steamRunning": True,
+            })
 
         targets = [
             os.path.join(root, n) for n in _STELLA_REMNANTS

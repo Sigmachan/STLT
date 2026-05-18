@@ -17,6 +17,8 @@ from __future__ import annotations
 
 import json
 import os
+import subprocess
+import tempfile
 import time
 from typing import Any, Dict, List, Optional
 
@@ -45,6 +47,39 @@ _INF_NAME = "steam.inf"
 
 # steam.cfg content that inhibits the bootstrapper self-update.
 _BLOCK_CFG = "BootStrapperInhibitAll=enable\nBootStrapperForceSelfUpdate=disable\n"
+
+
+def _steam_is_running() -> bool:
+    """True if steam.exe is currently running (Windows tasklist)."""
+    try:
+        out = subprocess.run(
+            ["tasklist", "/FI", "IMAGENAME eq steam.exe", "/NH"],
+            capture_output=True, text=True, timeout=5,
+            creationflags=0x08000000,  # CREATE_NO_WINDOW
+        )
+        return "steam.exe" in (out.stdout or "").lower()
+    except Exception:
+        # If we cannot tell, be conservative and assume it is running so
+        # the caller refuses to touch steam.cfg rather than risk corruption.
+        return True
+
+
+def _atomic_write(path: str, content: str) -> None:
+    """Write text to *path* atomically (temp file in same dir + os.replace)."""
+    directory = os.path.dirname(path) or "."
+    fd, tmp = tempfile.mkstemp(prefix=".luatools-", dir=directory)
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as fh:
+            fh.write(content)
+            fh.flush()
+            os.fsync(fh.fileno())
+        os.replace(tmp, path)
+    except Exception:
+        try:
+            os.remove(tmp)
+        except Exception:
+            pass
+        raise
 
 
 def _steam_root() -> Optional[str]:
@@ -134,6 +169,15 @@ def set_steam_update_block(enabled: bool) -> str:
         if not root or not os.path.isdir(root):
             return json.dumps({"success": False, "error": "Steam installation not found"})
 
+        # Refuse to touch steam.cfg while Steam is running: the change may
+        # not take effect and a half-written cfg can confuse the client.
+        if _steam_is_running():
+            return json.dumps({
+                "success": False,
+                "error": "Steam is running — close Steam fully, then retry.",
+                "steamRunning": True,
+            })
+
         cfg_path = os.path.join(root, _CFG_NAME)
         backup_made = ""
 
@@ -150,8 +194,7 @@ def set_steam_update_block(enabled: bool) -> str:
                 _logger.warn(f"SteamVersion: steam.cfg backup failed: {exc}")
 
         if enabled:
-            with open(cfg_path, "w", encoding="utf-8") as fh:
-                fh.write(_BLOCK_CFG)
+            _atomic_write(cfg_path, _BLOCK_CFG)
             _logger.log("SteamVersion: Steam auto-updates BLOCKED via steam.cfg")
             state = True
         else:
