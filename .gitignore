@@ -1,0 +1,31 @@
+# Claude / agent context — never commit
+CLAUDE.md
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+
+# Plugin runtime / generated
+temp/
+backend/data/
+backend/locales/__pycache__/
+update_pending.zip
+update_pending.json
+*.log
+
+# Secrets — never commit
+*.token
+*.pat
+.env
+.env.*
+secrets.json
+credentials.json
+
+# OS / editor
+Thumbs.db
+.DS_Store
+.idea/
+.vscode/

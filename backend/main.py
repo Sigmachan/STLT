@@ -11,6 +11,7 @@ import json
 import os
 import shutil
 import sys
+import threading
 import webbrowser
 
 from typing import Any
@@ -184,10 +185,26 @@ def _copy_webkit_files() -> None:
             logger.warn(f"Failed to copy theme files: {exc}")
 
 
+def _millennium_version() -> str:
+    """Return the running Millennium version, tolerant of API changes."""
+    try:
+        ver = Millennium.version()
+        return str(ver) if ver is not None else "unknown"
+    except Exception as exc:  # pragma: no cover - depends on host
+        logger.warn(f"LuaTools: Millennium.version() unavailable: {exc}")
+        return "unknown"
+
+
 def _inject_webkit_files() -> None:
     js_path = os.path.join(WEBKIT_DIR_NAME, WEB_UI_JS_FILE)
-    Millennium.add_browser_js(js_path)
-    logger.log(f"LuaTools injected web UI: {js_path}")
+    try:
+        # Millennium 2.36+/3.0 returns an integer module id (0 on failure);
+        # older builds returned None. A thrown exception must not abort
+        # _load(), otherwise the plugin is flagged as failed to load.
+        module_id = Millennium.add_browser_js(js_path)
+        logger.log(f"LuaTools injected web UI: {js_path} (module={module_id})")
+    except Exception as exc:
+        logger.error(f"LuaTools: add_browser_js failed for {js_path}: {exc}")
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -849,9 +866,43 @@ class Plugin:
     def _front_end_loaded(self):
         _copy_webkit_files()
 
-    def _load(self):
-        logger.log(f"bootstrapping LuaTools Ultimate v8.3, millennium {Millennium.version()}")
+    def _deferred_bootstrap(self):
+        """Network-heavy startup work, executed off the load thread.
 
+        Millennium 2.36+/3.0 flags a plugin as "failed to load" if _load()
+        blocks the main thread (e.g. the applist/GitHub/API-manifest network
+        fetches, which can hang for minutes on a slow connection). All such
+        I/O must run *after* Millennium.ready().
+        """
+        try:
+            message = apply_pending_update_if_any()
+            if message:
+                store_last_message(message)
+        except Exception as exc:
+            logger.warn(f"AutoUpdate: apply pending failed: {exc}")
+
+        try:
+            init_applist()
+        except Exception as exc:
+            logger.warn(f"LuaTools: Applist initialization failed: {exc}")
+
+        try:
+            result = InitApis("boot")
+            logger.log(f"InitApis (boot) return: {result}")
+        except Exception as exc:
+            logger.error(f"InitApis (boot) failed: {exc}")
+
+        try:
+            start_auto_update_background_check()
+        except Exception as exc:
+            logger.warn(f"AutoUpdate: start background check failed: {exc}")
+
+    def _load(self):
+        logger.log(
+            f"bootstrapping LuaTools Ultimate v8.3-fixed, millennium {_millennium_version()}"
+        )
+
+        # ── Fast, local-only setup (must complete before ready()) ──────────
         try:
             detect_steam_install_path()
         except Exception as exc:
@@ -865,31 +916,19 @@ class Plugin:
         except Exception as exc:
             logger.warn(f"LuaTools: settings initialization failed: {exc}")
 
-        try:
-            message = apply_pending_update_if_any()
-            if message:
-                store_last_message(message)
-        except Exception as exc:
-            logger.warn(f"AutoUpdate: apply pending failed: {exc}")
-
-        try:
-            init_applist()
-        except Exception as exc:
-            logger.warn(f"LuaTools: Applist initialization failed: {exc}")
-
         _copy_webkit_files()
         _inject_webkit_files()
 
+        # ── Defer all network I/O so ready() is reached immediately ────────
         try:
-            result = InitApis("boot")
-            logger.log(f"InitApis (boot) return: {result}")
+            threading.Thread(
+                target=self._deferred_bootstrap,
+                name="LuaToolsDeferredBootstrap",
+                daemon=True,
+            ).start()
         except Exception as exc:
-            logger.error(f"InitApis (boot) failed: {exc}")
-
-        try:
-            start_auto_update_background_check()
-        except Exception as exc:
-            logger.warn(f"AutoUpdate: start background check failed: {exc}")
+            logger.error(f"LuaTools: failed to start deferred bootstrap: {exc}")
+            self._deferred_bootstrap()
 
         Millennium.ready()
 

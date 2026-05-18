@@ -2,8 +2,8 @@
   "$schema": "https://raw.githubusercontent.com/SteamClientHomebrew/Millennium/main/src/sys/plugin-schema.json",
   "name": "luatools",
   "common_name": "LuaTools Ultimate",
-  "description": "LuaTools Steam Plugin \u2014 Ultimate Edition with SteamTools Collection, Cache Management & Win11 Optimization",
-  "version": "8.3",
+  "description": "LuaTools Steam Plugin \u2014 Ultimate Edition with SteamTools Collection, Cache Management & Win11 Optimization (Millennium 2.36+ compatible)",
+  "version": "8.3-fixed",
   "include": [
     "public"
   ],
