@@ -168,19 +168,38 @@ def remove_stella_fallback() -> str:
         backup_dir = os.path.join(
             root, "luatools_cloudfix_backup", time.strftime("%Y%m%d-%H%M%S")
         )
-        os.makedirs(backup_dir, exist_ok=True)
+        try:
+            os.makedirs(backup_dir, exist_ok=True)
+        except (OSError, PermissionError) as exc:
+            return json.dumps({
+                "success": False,
+                "error": f"Cannot create backup directory: {exc}",
+            })
 
         moved: List[str] = []
+        failed: List[Dict[str, str]] = []
         for src in targets:
             dst = os.path.join(backup_dir, os.path.basename(src))
-            shutil.move(src, dst)
-            moved.append(os.path.basename(src))
-            _logger.log(f"CloudFix: quarantined {os.path.basename(src)} -> {dst}")
+            try:
+                shutil.move(src, dst)
+                moved.append(os.path.basename(src))
+                _logger.log(f"CloudFix: quarantined {os.path.basename(src)} -> {dst}")
+            except (OSError, PermissionError) as exc:
+                _logger.warn(f"CloudFix: failed to move {os.path.basename(src)}: {exc}")
+                failed.append({"file": os.path.basename(src), "error": str(exc)})
+
+        if not moved and failed:
+            return json.dumps({
+                "success": False,
+                "error": "Failed to move any stella fallback files",
+                "failures": failed,
+            })
 
         return json.dumps({
             "success": True,
             "moved": moved,
             "backupDir": backup_dir,
+            "failures": failed,
             "message": "Stella fallback quarantined. Restart Steam. Restore "
                        "from the backup folder if anything misbehaves.",
         })

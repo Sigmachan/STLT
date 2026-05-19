@@ -1229,6 +1229,8 @@
             const dashboardBtn = createMenuButton('lt-st-dashboard', 'menu.dashboard', '📊 Quick Dashboard', 'fa-gauge-high');
             const healthScanBtn = createMenuButton('lt-st-health-scan', 'menu.healthScan', '🩺 Health Scan All Scripts', 'fa-stethoscope');
             const repairAllBtn = createMenuButton('lt-st-repair-all', 'menu.repairAll', '🔧 Repair Depot Cache', 'fa-screwdriver-wrench');
+            const acctTransferBtn = createMenuButton('lt-st-acct-transfer', 'menu.accountTransfer', '🔁 Account Data Transfer', 'fa-arrow-right-arrow-left');
+            const keyVaultBtn = createMenuButton('lt-st-key-vault', 'menu.keyVault', '🔑 API Key Vault', 'fa-key');
             const gameToolsBtn = createMenuButton('lt-st-game-tools', 'menu.gameTools', '🎮 Game Tools (per-app)', 'fa-gamepad');
             const cacheInfoBtn = createMenuButton('lt-st-cache-info', 'menu.cacheManager', '🧹 Cache Manager', 'fa-broom');
             const folderStatsBtn = createMenuButton('lt-st-folder-stats', 'menu.folderStats', '📁 Folder Stats', 'fa-chart-pie');
@@ -1276,6 +1278,22 @@
                     var existingOvs = document.querySelectorAll('.luatools-overlay, .luatools-settings-overlay');
                     existingOvs.forEach(function(o) { o.remove(); });
                     showRepairDepotCachePanel();
+                });
+            }
+            if (acctTransferBtn) {
+                acctTransferBtn.addEventListener('click', function (e) {
+                    e.preventDefault();
+                    var existingOvs = document.querySelectorAll('.luatools-overlay, .luatools-settings-overlay');
+                    existingOvs.forEach(function(o) { o.remove(); });
+                    showAccountTransferPanel();
+                });
+            }
+            if (keyVaultBtn) {
+                keyVaultBtn.addEventListener('click', function (e) {
+                    e.preventDefault();
+                    var existingOvs = document.querySelectorAll('.luatools-overlay, .luatools-settings-overlay');
+                    existingOvs.forEach(function(o) { o.remove(); });
+                    showKeyVaultPanel();
                 });
             }
             }
@@ -1597,6 +1615,337 @@
     function _stStatusBadge(status) {
         var c = status === 'healthy' ? '#4caf50' : status === 'warning' ? '#ff9800' : '#f44336';
         return '<span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:' + c + ';margin-right:6px;"></span>';
+    }
+
+
+    // ── Account-to-account Userdata Transfer (Denuvo tokens / saves) ──
+    function showAccountTransferPanel() {
+        _stOverlayShell('🔁 Account Data Transfer', function (body, ov, colors) {
+            var intro = document.createElement('div');
+            intro.style.cssText = 'font-size:12px;color:#aaa;line-height:1.6;margin-bottom:10px;padding:8px;background:rgba(255,200,0,0.06);border:1px solid rgba(255,200,0,0.2);border-radius:5px;';
+            intro.innerHTML = '<i class="fa-solid fa-info-circle" style="color:#ffc800;margin-right:5px;"></i>' +
+                'Migrate Denuvo activation tokens / cloud saves between two of your own Steam accounts ' +
+                'without re-logging in. <b style="color:#ff9800;">Steam must be closed</b> before transfer.';
+            body.appendChild(intro);
+
+            var allAccounts = [];
+            var selectedFrom = 0;
+            var selectedTo = 0;
+
+            var accountsArea = document.createElement('div');
+            accountsArea.style.cssText = 'margin-bottom:10px;';
+            body.appendChild(accountsArea);
+
+            var appidWrap = document.createElement('div');
+            appidWrap.style.cssText = 'display:flex;gap:8px;align-items:center;margin-bottom:10px;padding:8px;background:rgba(255,255,255,0.03);border-radius:5px;';
+            appidWrap.innerHTML = '<span style="font-size:12px;color:#aaa;">AppID:</span>' +
+                '<input type="number" id="lt-acct-appid" placeholder="e.g. 2050650" style="flex:1;background:#1a1a1a;border:1px solid #333;border-radius:3px;color:#ccc;padding:5px 8px;font-size:13px;">' +
+                '<button id="lt-acct-inspect" style="padding:5px 12px;background:rgba(102,192,244,0.2);border:1px solid rgba(102,192,244,0.4);border-radius:4px;color:#66c0f4;font-size:12px;cursor:pointer;">🔍 Inspect</button>';
+            body.appendChild(appidWrap);
+
+            var out = document.createElement('div');
+            out.style.cssText = 'font-size:12px;line-height:1.7;min-height:80px;padding:10px;background:rgba(0,0,0,0.2);border-radius:6px;border:1px solid ' + colors.borderRgba + ';overflow-y:auto;max-height:260px;margin-bottom:10px;';
+            out.innerHTML = '<span style="color:#888;">Loading accounts…</span>';
+            body.appendChild(out);
+
+            var actions = document.createElement('div');
+            actions.style.cssText = 'display:flex;gap:6px;';
+            var btnTransfer = document.createElement('button');
+            btnTransfer.textContent = '➡️ Transfer';
+            btnTransfer.disabled = true;
+            btnTransfer.style.cssText = 'flex:1;padding:8px;background:rgba(102,192,244,0.2);border:1px solid rgba(102,192,244,0.5);border-radius:5px;color:#66c0f4;font-size:13px;font-weight:600;cursor:pointer;';
+            var btnTransferOver = document.createElement('button');
+            btnTransferOver.textContent = '⚠️ Transfer (overwrite)';
+            btnTransferOver.disabled = true;
+            btnTransferOver.style.cssText = 'flex:1;padding:8px;background:rgba(255,150,0,0.15);border:1px solid rgba(255,150,0,0.4);border-radius:5px;color:#ff9800;font-size:13px;cursor:pointer;';
+            actions.appendChild(btnTransfer);
+            actions.appendChild(btnTransferOver);
+            body.appendChild(actions);
+
+            function updateActionState() {
+                var aid = parseInt((document.getElementById('lt-acct-appid') || {}).value) || 0;
+                var ok = selectedFrom && selectedTo && selectedFrom !== selectedTo && aid > 0;
+                btnTransfer.disabled = !ok;
+                btnTransferOver.disabled = !ok;
+                btnTransfer.style.opacity = ok ? '1' : '0.5';
+                btnTransferOver.style.opacity = ok ? '1' : '0.5';
+            }
+
+            function renderAccounts() {
+                if (!allAccounts.length) {
+                    accountsArea.innerHTML = '<div style="color:#ff9800;font-size:12px;padding:8px;">No userdata accounts found.</div>';
+                    return;
+                }
+                var html = '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">';
+                ['from', 'to'].forEach(function (kind) {
+                    var label = kind === 'from' ? '📤 Source (FROM)' : '📥 Destination (TO)';
+                    html += '<div><div style="font-size:11px;color:#aaa;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">' + label + '</div>';
+                    html += '<div style="max-height:140px;overflow-y:auto;border:1px solid ' + colors.borderRgba + ';border-radius:5px;">';
+                    allAccounts.forEach(function (acc) {
+                        var name = (acc.personaName || acc.username || 'Unknown') + ' (' + acc.accountId32 + ')';
+                        var recent = acc.mostRecent ? ' <span style="background:#1b6fa8;border-radius:3px;padding:1px 5px;font-size:10px;">active</span>' : '';
+                        html += '<div class="lt-acct-row" data-kind="' + kind + '" data-id="' + acc.accountId32 + '" style="padding:6px 8px;font-size:12px;cursor:pointer;border-bottom:1px solid rgba(255,255,255,0.05);">';
+                        html += name + recent;
+                        html += '<div style="color:#888;font-size:10px;margin-top:2px;">' + acc.appCount + ' apps · ' + acc.sizeMB + ' MB</div>';
+                        html += '</div>';
+                    });
+                    html += '</div></div>';
+                });
+                html += '</div>';
+                accountsArea.innerHTML = html;
+
+                accountsArea.querySelectorAll('.lt-acct-row').forEach(function (row) {
+                    row.onclick = function () {
+                        var kind = row.getAttribute('data-kind');
+                        var id = parseInt(row.getAttribute('data-id'));
+                        if (kind === 'from') selectedFrom = id;
+                        else selectedTo = id;
+                        accountsArea.querySelectorAll('.lt-acct-row[data-kind="' + kind + '"]').forEach(function (r) {
+                            r.style.background = (parseInt(r.getAttribute('data-id')) === id) ? 'rgba(102,192,244,0.2)' : '';
+                        });
+                        updateActionState();
+                    };
+                });
+            }
+
+            function loadAccounts() {
+                Millennium.callServerMethod('luatools', 'ListUserdataAccounts', { contentScriptQuery: '' })
+                    .then(function (res) {
+                        var p = typeof res === 'string' ? JSON.parse(res) : res;
+                        if (p && p.success) {
+                            allAccounts = p.accounts || [];
+                            renderAccounts();
+                            out.innerHTML = '<span style="color:#888;">Select source + destination, enter an AppID, then Inspect or Transfer.</span>';
+                        } else {
+                            out.innerHTML = '<span style="color:#f44336;">' + (p && p.error ? p.error : 'Failed to load accounts') + '</span>';
+                        }
+                    });
+            }
+
+            // AppID input change handler
+            setTimeout(function () {
+                var appidEl = document.getElementById('lt-acct-appid');
+                if (appidEl) appidEl.addEventListener('input', updateActionState);
+
+                var inspBtn = document.getElementById('lt-acct-inspect');
+                if (inspBtn) inspBtn.onclick = function () {
+                    var aid = parseInt(document.getElementById('lt-acct-appid').value) || 0;
+                    if (!aid || !selectedFrom) {
+                        out.innerHTML = '<span style="color:#ff9800;">Select a source account and enter an AppID first.</span>';
+                        return;
+                    }
+                    out.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Inspecting…';
+                    Millennium.callServerMethod('luatools', 'InspectGameUserdata', {
+                        accountId32: selectedFrom, appid: aid, contentScriptQuery: ''
+                    }).then(function (res) {
+                        var p = typeof res === 'string' ? JSON.parse(res) : res;
+                        if (!p || !p.success) {
+                            out.innerHTML = '<span style="color:#f44336;">Error: ' + (p && p.error ? p.error : 'Unknown') + '</span>';
+                            return;
+                        }
+                        if (!p.exists) {
+                            out.innerHTML = '<span style="color:#ff9800;">No data found for AppID ' + aid + ' on account ' + selectedFrom + '.</span>';
+                            return;
+                        }
+                        var html = '<div style="color:#4caf50;font-weight:600;margin-bottom:4px;">📂 Found ' + p.fileCount + ' files (' + p.sizeMB + ' MB)</div>';
+                        html += '<div style="font-size:11px;color:#888;margin-bottom:6px;word-break:break-all;">' + p.path + '</div>';
+                        html += '<div style="font-size:11px;color:#aaa;max-height:140px;overflow-y:auto;">';
+                        (p.files || []).slice(0, 15).forEach(function (f) {
+                            var kb = (f.sizeBytes / 1024).toFixed(1);
+                            html += '<div>📄 ' + f.name + ' <span style="color:#666;">(' + kb + ' KB)</span></div>';
+                        });
+                        if ((p.files || []).length > 15) html += '<div style="color:#666;">… and ' + ((p.files || []).length - 15) + ' more</div>';
+                        html += '</div>';
+                        out.innerHTML = html;
+                    });
+                };
+            }, 50);
+
+            function doTransfer(overwrite) {
+                var aid = parseInt(document.getElementById('lt-acct-appid').value) || 0;
+                if (!aid || !selectedFrom || !selectedTo) return;
+                out.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Transferring…';
+                Millennium.callServerMethod('luatools', 'TransferGameUserdata', {
+                    fromAccountId32: selectedFrom,
+                    toAccountId32: selectedTo,
+                    appid: aid,
+                    overwrite: overwrite,
+                    backup: true,
+                    contentScriptQuery: ''
+                }).then(function (res) {
+                    var p = typeof res === 'string' ? JSON.parse(res) : res;
+                    if (!p || !p.success) {
+                        var msg = p && p.error ? p.error : 'Unknown';
+                        var color = p && p.requiresSteamClose ? '#ff9800' : '#f44336';
+                        out.innerHTML = '<span style="color:' + color + ';"><i class="fa-solid fa-triangle-exclamation" style="margin-right:5px;"></i>' + msg + '</span>';
+                        if (p && p.destExists) {
+                            out.innerHTML += '<div style="margin-top:6px;font-size:11px;color:#aaa;">Use "Transfer (overwrite)" — existing data will be backed up.</div>';
+                        }
+                        return;
+                    }
+                    var html = '<div style="color:#4caf50;font-weight:700;margin-bottom:4px;">✅ Transfer complete</div>';
+                    html += '<div style="font-size:12px;">Copied <b>' + p.filesCopied + ' files</b> (' + p.sizeMB + ' MB)</div>';
+                    html += '<div style="font-size:11px;color:#888;margin-top:4px;word-break:break-all;">📂 ' + p.destPath + '</div>';
+                    if (p.backupPath) html += '<div style="font-size:11px;color:#ffc800;margin-top:4px;word-break:break-all;">💾 Backup: ' + p.backupPath + '</div>';
+                    out.innerHTML = html;
+                });
+            }
+
+            btnTransfer.onclick = function () { doTransfer(false); };
+            btnTransferOver.onclick = function () {
+                if (window.confirm('Existing destination data will be backed up (.bak-*) and replaced. Continue?')) {
+                    doTransfer(true);
+                }
+            };
+
+            loadAccounts();
+        });
+    }
+
+
+    // ── API Key Vault (Ryuu / DepotBox / Morrenus / etc. profiles) ────
+    function showKeyVaultPanel() {
+        _stOverlayShell('🔑 API Key Vault', function (body, ov, colors) {
+            var intro = document.createElement('div');
+            intro.style.cssText = 'font-size:12px;color:#aaa;line-height:1.6;margin-bottom:10px;padding:8px;background:rgba(102,192,244,0.05);border:1px solid rgba(102,192,244,0.2);border-radius:5px;';
+            intro.innerHTML = '<i class="fa-solid fa-info-circle" style="color:#66c0f4;margin-right:5px;"></i>' +
+                'Save Ryuu / DepotBox / Morrenus / ManifestHub / SteamGridDB / GitHub keys as profiles. ' +
+                'Switch sets in one click or export to a .ltkeys blob for another machine.';
+            body.appendChild(intro);
+
+            var saveRow = document.createElement('div');
+            saveRow.style.cssText = 'display:flex;gap:6px;margin-bottom:10px;padding:8px;background:rgba(255,255,255,0.03);border-radius:5px;';
+            saveRow.innerHTML = '<input id="lt-kv-name" type="text" placeholder="profile name (e.g. main, work)" value="main" style="flex:1;background:#1a1a1a;border:1px solid #333;border-radius:3px;color:#ccc;padding:5px 8px;font-size:12px;">' +
+                '<button id="lt-kv-save" style="padding:5px 12px;background:rgba(76,175,80,0.2);border:1px solid rgba(76,175,80,0.4);border-radius:4px;color:#4caf50;font-size:12px;cursor:pointer;">💾 Save current as profile</button>';
+            body.appendChild(saveRow);
+
+            var listArea = document.createElement('div');
+            listArea.style.cssText = 'margin-bottom:10px;max-height:260px;overflow-y:auto;';
+            body.appendChild(listArea);
+
+            var ioRow = document.createElement('div');
+            ioRow.style.cssText = 'display:flex;gap:6px;';
+            ioRow.innerHTML =
+                '<input id="lt-kv-blob" type="text" placeholder="paste .ltkeys blob to import…" style="flex:1;background:#1a1a1a;border:1px solid #333;border-radius:3px;color:#ccc;padding:5px 8px;font-size:11px;font-family:monospace;">' +
+                '<button id="lt-kv-import" style="padding:5px 10px;background:rgba(102,192,244,0.15);border:1px solid rgba(102,192,244,0.4);border-radius:4px;color:#66c0f4;font-size:11px;cursor:pointer;">📥 Import</button>';
+            body.appendChild(ioRow);
+
+            var out = document.createElement('div');
+            out.style.cssText = 'font-size:11px;color:#888;margin-top:8px;padding:6px;background:rgba(0,0,0,0.2);border-radius:4px;display:none;';
+            body.appendChild(out);
+
+            function showMsg(text, color) {
+                out.style.display = 'block';
+                out.style.color = color || '#888';
+                out.textContent = text;
+                if (color === '#4caf50') {
+                    setTimeout(refreshList, 500);
+                }
+            }
+
+            function refreshList() {
+                Millennium.callServerMethod('luatools', 'ListKeyProfiles', { contentScriptQuery: '' })
+                    .then(function (res) {
+                        var p = typeof res === 'string' ? JSON.parse(res) : res;
+                        if (!p || !p.success) {
+                            listArea.innerHTML = '<div style="color:#f44336;font-size:12px;">' + (p && p.error ? p.error : 'Failed') + '</div>';
+                            return;
+                        }
+                        var profiles = p.profiles || [];
+                        if (!profiles.length) {
+                            listArea.innerHTML = '<div style="color:#888;font-size:12px;padding:10px;text-align:center;">No saved profiles yet. Save your current keys above.</div>';
+                            return;
+                        }
+                        var html = '';
+                        profiles.forEach(function (prof) {
+                            var isActive = (prof.name === p.active);
+                            html += '<div style="margin-bottom:6px;padding:8px;background:' + (isActive ? 'rgba(102,192,244,0.08)' : 'rgba(255,255,255,0.03)') + ';border:1px solid ' + (isActive ? 'rgba(102,192,244,0.3)' : 'rgba(255,255,255,0.06)') + ';border-radius:5px;">';
+                            html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">';
+                            html += '<div style="font-size:13px;font-weight:600;color:#ccc;">🔑 ' + prof.name;
+                            if (isActive) html += ' <span style="background:#1b6fa8;border-radius:3px;padding:1px 5px;font-size:9px;color:#fff;margin-left:4px;">ACTIVE</span>';
+                            html += '</div>';
+                            html += '<div style="font-size:10px;color:#888;">' + prof.fieldsSet + '/' + prof.totalFields + ' fields</div>';
+                            html += '</div>';
+                            html += '<div style="font-size:10px;color:#888;font-family:monospace;line-height:1.5;">';
+                            (p.fields || []).forEach(function (f) {
+                                var v = prof.masked[f.key];
+                                if (v) html += f.label + ': <span style="color:#66c0f4;">' + v + '</span><br>';
+                            });
+                            html += '</div>';
+                            html += '<div style="display:flex;gap:4px;margin-top:6px;">';
+                            html += '<button class="lt-kv-action" data-action="load" data-name="' + prof.name + '" style="padding:3px 8px;background:rgba(76,175,80,0.15);border:1px solid rgba(76,175,80,0.4);border-radius:3px;color:#4caf50;font-size:11px;cursor:pointer;">🔄 Activate</button>';
+                            html += '<button class="lt-kv-action" data-action="export" data-name="' + prof.name + '" style="padding:3px 8px;background:rgba(102,192,244,0.15);border:1px solid rgba(102,192,244,0.4);border-radius:3px;color:#66c0f4;font-size:11px;cursor:pointer;">📤 Export</button>';
+                            html += '<button class="lt-kv-action" data-action="delete" data-name="' + prof.name + '" style="padding:3px 8px;background:rgba(244,67,54,0.15);border:1px solid rgba(244,67,54,0.4);border-radius:3px;color:#f44336;font-size:11px;cursor:pointer;">🗑 Delete</button>';
+                            html += '</div></div>';
+                        });
+                        listArea.innerHTML = html;
+
+                        listArea.querySelectorAll('.lt-kv-action').forEach(function (btn) {
+                            btn.onclick = function () {
+                                var action = btn.getAttribute('data-action');
+                                var name = btn.getAttribute('data-name');
+                                if (action === 'load') {
+                                    Millennium.callServerMethod('luatools', 'LoadKeyProfile', { name: name, contentScriptQuery: '' })
+                                        .then(function (r) {
+                                            var pp = typeof r === 'string' ? JSON.parse(r) : r;
+                                            if (pp && pp.success) showMsg('✅ Loaded profile "' + name + '" — ' + (pp.applied || []).length + ' fields applied', '#4caf50');
+                                            else showMsg(pp && pp.error || 'Failed', '#f44336');
+                                        });
+                                } else if (action === 'export') {
+                                    Millennium.callServerMethod('luatools', 'ExportKeyProfile', { name: name, contentScriptQuery: '' })
+                                        .then(function (r) {
+                                            var pp = typeof r === 'string' ? JSON.parse(r) : r;
+                                            if (pp && pp.success) {
+                                                try { navigator.clipboard.writeText(pp.blob); } catch (_) {}
+                                                showMsg('📋 Blob copied to clipboard (' + pp.blob.length + ' chars). Paste to import on another machine.', '#66c0f4');
+                                            } else showMsg(pp && pp.error || 'Failed', '#f44336');
+                                        });
+                                } else if (action === 'delete') {
+                                    if (window.confirm('Delete profile "' + name + '"? Active keys in settings are not affected.')) {
+                                        Millennium.callServerMethod('luatools', 'DeleteKeyProfile', { name: name, contentScriptQuery: '' })
+                                            .then(function (r) {
+                                                var pp = typeof r === 'string' ? JSON.parse(r) : r;
+                                                if (pp && pp.success) showMsg('🗑 Deleted "' + name + '"', '#4caf50');
+                                                else showMsg(pp && pp.error || 'Failed', '#f44336');
+                                            });
+                                    }
+                                }
+                            };
+                        });
+                    });
+            }
+
+            setTimeout(function () {
+                var saveBtn = document.getElementById('lt-kv-save');
+                if (saveBtn) saveBtn.onclick = function () {
+                    var name = (document.getElementById('lt-kv-name').value || 'main').trim();
+                    Millennium.callServerMethod('luatools', 'SaveKeyProfile', { name: name, contentScriptQuery: '' })
+                        .then(function (r) {
+                            var pp = typeof r === 'string' ? JSON.parse(r) : r;
+                            if (pp && pp.success) showMsg('✅ Saved profile "' + pp.name + '" — ' + pp.fieldsSet + ' fields', '#4caf50');
+                            else showMsg(pp && pp.error || 'Failed', '#f44336');
+                        });
+                };
+
+                var importBtn = document.getElementById('lt-kv-import');
+                if (importBtn) importBtn.onclick = function () {
+                    var blob = (document.getElementById('lt-kv-blob').value || '').trim();
+                    if (!blob) { showMsg('Paste a .ltkeys blob first', '#ff9800'); return; }
+                    Millennium.callServerMethod('luatools', 'ImportKeyProfile', { blob: blob, contentScriptQuery: '' })
+                        .then(function (r) {
+                            var pp = typeof r === 'string' ? JSON.parse(r) : r;
+                            if (pp && pp.success) {
+                                showMsg('✅ Imported as "' + pp.name + '" — ' + pp.fieldsSet + ' fields', '#4caf50');
+                                document.getElementById('lt-kv-blob').value = '';
+                            } else {
+                                showMsg(pp && pp.error || 'Failed', '#f44336');
+                            }
+                        });
+                };
+            }, 50);
+
+            refreshList();
+        });
     }
 
 

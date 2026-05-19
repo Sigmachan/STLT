@@ -117,6 +117,21 @@ from events import get_hooks_config as _get_hooks, save_hooks_config as _save_ho
 from history import get_download_history_json as _get_history, get_download_stats_json as _get_dl_stats
 from source_chain import get_source_chain_json as _get_chain, save_source_chain_json as _save_chain
 from config_transfer import export_config as _export_config, import_config as _import_config
+from account_transfer import (
+    list_accounts as _at_list_accounts,
+    inspect_game_data as _at_inspect,
+    transfer_game_data as _at_transfer,
+    restore_transfer_backup as _at_restore,
+    list_game_data_backups as _at_list_backups,
+)
+from key_vault import (
+    list_profiles as _kv_list,
+    save_profile as _kv_save,
+    load_profile as _kv_load,
+    delete_profile as _kv_delete,
+    export_profile as _kv_export,
+    import_profile as _kv_import,
+)
 from mod_system import (
     get_mod_list as _get_mod_list,
     get_mod_file as _get_mod_file,
@@ -729,6 +744,87 @@ def RepairDepotCache(appid: int = 0, fix_lua: bool = False,
         orphan_age_days=int(orphan_age_days),
         dry_run=bool(dry_run),
     )
+
+
+# ── Account-to-account transfer (Denuvo tokens / cloud saves) ─────────────
+
+def ListUserdataAccounts(contentScriptQuery: str = "") -> str:
+    """Steam accounts with on-disk userdata folder. Includes size + app count."""
+    return _at_list_accounts(contentScriptQuery)
+
+
+def InspectGameUserdata(accountId32: int, appid: int,
+                        contentScriptQuery: str = "") -> str:
+    """Inspect <Steam>/userdata/<accountId>/<appid>/ -- file list + total size."""
+    return _at_inspect(int(accountId32), int(appid), contentScriptQuery)
+
+
+def TransferGameUserdata(fromAccountId32: int, toAccountId32: int,
+                         appid: int, overwrite: bool = False,
+                         backup: bool = True,
+                         contentScriptQuery: str = "") -> str:
+    """Copy a game's userdata folder from one account to another.
+
+    Used to migrate Denuvo activation tokens or save files between two of your
+    own Steam accounts without re-logging-in.
+
+    Steam must be closed before transfer (otherwise the destination Steam
+    will overwrite our copy on shutdown).
+    """
+    return _at_transfer(
+        int(fromAccountId32), int(toAccountId32), int(appid),
+        overwrite=bool(overwrite),
+        backup_dest=bool(backup),
+        contentScriptQuery=contentScriptQuery,
+    )
+
+
+def RestoreGameUserdataBackup(accountId32: int, appid: int,
+                              backupPath: str = "",
+                              contentScriptQuery: str = "") -> str:
+    """Restore the most recent .bak-* userdata backup for an appid."""
+    return _at_restore(int(accountId32), int(appid),
+                       backup_path=backupPath,
+                       contentScriptQuery=contentScriptQuery)
+
+
+def ListUserdataBackups(contentScriptQuery: str = "") -> str:
+    """List all .bak-* and .pre-restore-* userdata folders across accounts."""
+    return _at_list_backups(contentScriptQuery)
+
+
+# ── API key vault (Ryuu / DepotBox / Morrenus / etc. profiles) ────────────
+
+def ListKeyProfiles(contentScriptQuery: str = "") -> str:
+    """List saved key profiles with masked credentials + active marker."""
+    return _kv_list(contentScriptQuery)
+
+
+def SaveKeyProfile(name: str = "main", contentScriptQuery: str = "") -> str:
+    """Snapshot the currently active API keys into a named profile."""
+    return _kv_save(name, contentScriptQuery)
+
+
+def LoadKeyProfile(name: str = "main", contentScriptQuery: str = "") -> str:
+    """Apply the named profile's keys to current settings."""
+    return _kv_load(name, contentScriptQuery)
+
+
+def DeleteKeyProfile(name: str = "", contentScriptQuery: str = "") -> str:
+    """Remove a profile from the vault (does not clear active settings)."""
+    return _kv_delete(name, contentScriptQuery)
+
+
+def ExportKeyProfile(name: str = "", contentScriptQuery: str = "") -> str:
+    """Export a profile as a portable base64 .ltkeys blob."""
+    return _kv_export(name, contentScriptQuery)
+
+
+def ImportKeyProfile(blob: str = "", nameOverride: str = "",
+                     activate: bool = False,
+                     contentScriptQuery: str = "") -> str:
+    """Import a profile from a base64 blob produced by ExportKeyProfile."""
+    return _kv_import(blob, nameOverride, bool(activate), contentScriptQuery)
 
 
 def GetCustomApis(contentScriptQuery: str = "") -> str:
