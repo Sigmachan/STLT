@@ -97,6 +97,7 @@ from settings.manager import (
     apply_settings_changes,
     get_available_locales,
     get_settings_payload,
+    get_steamtools_settings,
     get_translation_map,
     init_settings,
 )
@@ -131,6 +132,14 @@ from key_vault import (
     delete_profile as _kv_delete,
     export_profile as _kv_export,
     import_profile as _kv_import,
+)
+from sentinel import (
+    start_sentinel as _sentinel_start,
+    stop_sentinel as _sentinel_stop,
+    get_sentinel_status as _sentinel_status,
+    set_sentinel_config as _sentinel_config,
+    ignore_game as _sentinel_ignore,
+    unignore_game as _sentinel_unignore,
 )
 from mod_system import (
     get_mod_list as _get_mod_list,
@@ -989,6 +998,44 @@ def UninstallMod(mod_id: str = "", contentScriptQuery: str = "") -> str:
 
 
 # ═══════════════════════════════════════════════════════════════════════════
+# SENTINEL DAEMON (v9.0) — Background automation
+# ═══════════════════════════════════════════════════════════════════════════
+
+def StartSentinel(contentScriptQuery: str = "") -> str:
+    """Start LuaTools Sentinel background daemon."""
+    return _sentinel_start()
+
+
+def StopSentinel(contentScriptQuery: str = "") -> str:
+    """Stop LuaTools Sentinel background daemon."""
+    return _sentinel_stop()
+
+
+def GetSentinelStatus(contentScriptQuery: str = "") -> str:
+    """Get Sentinel daemon status and configuration."""
+    return _sentinel_status()
+
+
+def SetSentinelConfig(config_json: str = "{}", contentScriptQuery: str = "") -> str:
+    """Update Sentinel configuration (enable/disable, poll interval, etc.)."""
+    try:
+        config = json.loads(config_json) if isinstance(config_json, str) else config_json
+        return _sentinel_config(config)
+    except Exception as exc:
+        return json.dumps({"success": False, "error": str(exc)})
+
+
+def IgnoreGameNotifications(appid: int, contentScriptQuery: str = "") -> str:
+    """Add game to Sentinel ignore list (don't notify about it)."""
+    return _sentinel_ignore(int(appid))
+
+
+def UnignoreGameNotifications(appid: int, contentScriptQuery: str = "") -> str:
+    """Remove game from Sentinel ignore list."""
+    return _sentinel_unignore(int(appid))
+
+
+# ═══════════════════════════════════════════════════════════════════════════
 # PLUGIN LIFECYCLE
 # ═══════════════════════════════════════════════════════════════════════════
 
@@ -1027,6 +1074,17 @@ class Plugin:
         except Exception as exc:
             logger.warn(f"AutoUpdate: start background check failed: {exc}")
 
+        # ── Start Sentinel daemon (v9.0) when enabled in settings ─────────
+        try:
+            settings = get_steamtools_settings()
+            if settings.get("sentinelEnabled"):
+                StartSentinel()
+                logger.log("LuaTools: Sentinel daemon started")
+            else:
+                logger.log("LuaTools: Sentinel disabled by settings")
+        except Exception as exc:
+            logger.warn(f"LuaTools: Sentinel startup failed: {exc}")
+
     def _load(self):
         logger.log(
             f"bootstrapping LuaTools Ultimate v8.3-fixed, millennium {_millennium_version()}"
@@ -1063,6 +1121,12 @@ class Plugin:
         Millennium.ready()
 
     def _unload(self):
+        # ── Stop Sentinel daemon gracefully ───────────────────────────────
+        try:
+            StopSentinel()
+        except Exception:
+            pass
+
         logger.log("unloading")
         close_http_client("InitApis")
 

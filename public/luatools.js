@@ -1227,6 +1227,7 @@
 
             createSectionLabel('menu.steamToolsLabel', 'SteamTools');
             const dashboardBtn = createMenuButton('lt-st-dashboard', 'menu.dashboard', '📊 Quick Dashboard', 'fa-gauge-high');
+            const sentinelBtn = createMenuButton('lt-st-sentinel', 'menu.sentinel', '🛡 Sentinel Status', 'fa-shield-check');
             const healthScanBtn = createMenuButton('lt-st-health-scan', 'menu.healthScan', '🩺 Health Scan All Scripts', 'fa-stethoscope');
             const repairAllBtn = createMenuButton('lt-st-repair-all', 'menu.repairAll', '🔧 Repair Depot Cache', 'fa-screwdriver-wrench');
             const acctTransferBtn = createMenuButton('lt-st-acct-transfer', 'menu.accountTransfer', '🔁 Account Data Transfer', 'fa-arrow-right-arrow-left');
@@ -1265,6 +1266,15 @@
                 });
             }
 
+            // ── SteamTools: Sentinel Status button ───────────────────
+            if (sentinelBtn) {
+                sentinelBtn.addEventListener('click', function (e) {
+                    e.preventDefault();
+                    try { overlay.remove(); } catch (_) { }
+                    showSentinelPanel();
+                });
+            }
+
             // ── SteamTools: Health Scan button ────────────────────────
             if (healthScanBtn) {
                 healthScanBtn.addEventListener('click', function (e) {
@@ -1272,6 +1282,7 @@
                     try { overlay.remove(); } catch (_) { }
                     showSteamToolsHealthScan();
                 });
+            }
             if (repairAllBtn) {
                 repairAllBtn.addEventListener('click', function (e) {
                     e.preventDefault();
@@ -1295,7 +1306,6 @@
                     existingOvs.forEach(function(o) { o.remove(); });
                     showKeyVaultPanel();
                 });
-            }
             }
 
             // ── SteamTools: Cache Manager button ──────────────────────
@@ -2675,10 +2685,13 @@
             body.innerHTML = '<div style="text-align:center;padding:10px;color:' + colors.accent + '"><i class="fa-solid fa-spinner fa-spin" style="font-size:16px;"></i><div style="margin-top:8px;">Gathering stats…</div></div>';
             Promise.all([
                 Millennium.callServerMethod('luatools', 'GetQuickDashboard', { contentScriptQuery: '' }),
-                Millennium.callServerMethod('luatools', 'GetSteamProcessInfo', { contentScriptQuery: '' })
+                Millennium.callServerMethod('luatools', 'GetSteamProcessInfo', { contentScriptQuery: '' }),
+                Millennium.callServerMethod('luatools', 'GetSentinelStatus', { contentScriptQuery: '' })
             ]).then(function (results) {
                 var d = typeof results[0] === 'string' ? JSON.parse(results[0]) : results[0];
                 var pi = typeof results[1] === 'string' ? JSON.parse(results[1]) : results[1];
+                var sentinelInfo = typeof results[2] === 'string' ? JSON.parse(results[2]) : results[2];
+
                 function card(icon, label, value, color) {
                     return '<div style="text-align:center;padding:10px 6px;background:rgba(255,255,255,0.04);border-radius:8px;min-width:80px;">'
                         + '<i class="fa-solid ' + icon + '" style="font-size:14px;color:' + (color || colors.accent) + ';margin-bottom:4px;display:block;"></i>'
@@ -2701,8 +2714,206 @@
                     html += '<span style="opacity:0.5;font-size:11px;">(' + pi.processes.length + ' proc, ' + pi.totalMemoryMB + ' MB)</span>';
                 }
                 html += '</div>';
+
+                var sentinelStatus = 'Unavailable';
+                var sentinelEnabled = 'Unknown';
+                var sentinelPoll = '--';
+                var sentinelColor = '#9e9e9e';
+                if (sentinelInfo && sentinelInfo.success) {
+                    sentinelStatus = sentinelInfo.running ? 'Running' : 'Stopped';
+                    sentinelEnabled = sentinelInfo.enabled ? 'Enabled' : 'Disabled';
+                    sentinelPoll = (typeof sentinelInfo.poll_interval_minutes === 'number') ? (sentinelInfo.poll_interval_minutes + ' min') : (sentinelInfo.poll_interval || '--');
+                    sentinelColor = sentinelInfo.running ? '#4caf50' : (sentinelInfo.enabled ? '#ff9800' : '#f44336');
+                }
+                html += '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:10px;">'
+                    + card('fa-shield-check', 'Sentinel', sentinelStatus, sentinelColor)
+                    + card('fa-toggle-on', 'Enabled', sentinelEnabled, (sentinelInfo && sentinelInfo.enabled) ? '#4caf50' : '#ff9800')
+                    + card('fa-clock', 'Poll', sentinelPoll, '#2196f3')
+                    + '</div>';
+
+                if (sentinelInfo && sentinelInfo.success) {
+                    html += '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:6px;">'
+                        + card('fa-shield-halved', 'Policy', (sentinelInfo.auto_apply_policy || '--').toString().replace('_', ' '), '#ffb300')
+                        + card('fa-bell', 'Notify', (sentinelInfo.notification_style || '--').toString(), '#00bcd4')
+                        + card('fa-eye', 'Seen', sentinelInfo.seen_games_count || 0, '#9c27b0')
+                        + '</div>';
+                }
+
                 body.innerHTML = html;
+
+                if (sentinelInfo && sentinelInfo.success) {
+                    var actionRow = document.createElement('div');
+                    actionRow.style.cssText = 'display:flex;flex-wrap:wrap;gap:6px;justify-content:center;margin-top:10px;';
+
+                    var enableBtn = document.createElement('button');
+                    enableBtn.textContent = sentinelInfo.enabled ? 'Disable Sentinel' : 'Enable Sentinel';
+                    enableBtn.style.cssText = 'padding:8px 12px;background:' + (sentinelInfo.enabled ? '#f44336' : '#4caf50') + ';color:#fff;border:none;border-radius:6px;cursor:pointer;min-width:120px;';
+                    enableBtn.onclick = function () {
+                        var enabledValue = !sentinelInfo.enabled;
+                        Millennium.callServerMethod('luatools', 'SetSentinelConfig', { config_json: JSON.stringify({ enabled: enabledValue }), contentScriptQuery: '' })
+                            .then(function (res) {
+                                var result = typeof res === 'string' ? JSON.parse(res) : res;
+                                if (result.success) {
+                                    showLuaToolsToast('Sentinel ' + (enabledValue ? 'enabled' : 'disabled'), 2500, 'success');
+                                    showSteamToolsDashboard();
+                                } else {
+                                    showLuaToolsToast('Sentinel update failed', 2500, 'error');
+                                }
+                            }).catch(function () { showLuaToolsToast('Sentinel update failed', 2500, 'error'); });
+                    };
+                    actionRow.appendChild(enableBtn);
+
+                    var runBtn = document.createElement('button');
+                    runBtn.textContent = sentinelInfo.running ? 'Stop Sentinel' : 'Start Sentinel';
+                    runBtn.style.cssText = 'padding:8px 12px;background:' + (sentinelInfo.running ? '#ff9800' : '#1976d2') + ';color:#fff;border:none;border-radius:6px;cursor:pointer;min-width:120px;';
+                    runBtn.disabled = !sentinelInfo.enabled && !sentinelInfo.running;
+                    runBtn.onclick = function () {
+                        var method = sentinelInfo.running ? 'StopSentinel' : 'StartSentinel';
+                        Millennium.callServerMethod('luatools', method, { contentScriptQuery: '' })
+                            .then(function (res) {
+                                var result = typeof res === 'string' ? JSON.parse(res) : res;
+                                if (result.success) {
+                                    showLuaToolsToast('Sentinel ' + (sentinelInfo.running ? 'stopped' : 'started'), 2500, 'success');
+                                    showSteamToolsDashboard();
+                                } else {
+                                    showLuaToolsToast(result.message || 'Sentinel action failed', 2500, 'error');
+                                }
+                            }).catch(function () { showLuaToolsToast('Sentinel action failed', 2500, 'error'); });
+                    };
+                    actionRow.appendChild(runBtn);
+
+                    var refreshBtn = document.createElement('button');
+                    refreshBtn.textContent = 'Refresh';
+                    refreshBtn.style.cssText = 'padding:8px 12px;background:rgba(255,255,255,0.08);color:#fff;border:1px solid rgba(255,255,255,0.12);border-radius:6px;cursor:pointer;min-width:100px;';
+                    refreshBtn.onclick = function () { showSteamToolsDashboard(); };
+                    actionRow.appendChild(refreshBtn);
+
+                    body.appendChild(actionRow);
+                }
             }).catch(function (err) { body.innerHTML = '<div style="color:#f44336;">Failed: ' + err + '</div>'; });
+        });
+    }
+
+    function showSentinelPanel() {
+        _stOverlayShell('🛡 Sentinel Status', function (body, ov, colors) {
+            body.innerHTML = '<div style="text-align:center;padding:10px;color:' + colors.accent + '"><i class="fa-solid fa-spinner fa-spin" style="font-size:16px;"></i><div style="margin-top:8px;">Loading Sentinel status…</div></div>';
+            Millennium.callServerMethod('luatools', 'GetSentinelStatus', { contentScriptQuery: '' })
+                .then(function (res) {
+                    var info = typeof res === 'string' ? JSON.parse(res) : res;
+                    if (!info.success) {
+                        body.innerHTML = '<div style="color:#f44336;">Error: ' + (info.error || 'Unknown') + '</div>';
+                        return;
+                    }
+
+                    var status = info.running ? 'Running' : 'Stopped';
+                    var enabled = info.enabled ? 'Enabled' : 'Disabled';
+                    var poll = (typeof info.poll_interval_minutes === 'number') ? (info.poll_interval_minutes + ' min') : (info.poll_interval || '--');
+                    var policy = (info.auto_apply_policy || '--').toString().replace('_', ' ');
+                    var notify = (info.notification_style || '--').toString();
+                    var seen = info.seen_games_count || 0;
+                    var color = info.running ? '#4caf50' : (info.enabled ? '#ff9800' : '#f44336');
+
+                    function card(icon, label, value, color) {
+                        return '<div style="text-align:center;padding:10px 6px;background:rgba(255,255,255,0.04);border-radius:8px;min-width:80px;">'
+                            + '<i class="fa-solid ' + icon + '" style="font-size:14px;color:' + (color || colors.accent) + ';margin-bottom:4px;display:block;"></i>'
+                            + '<div style="font-size:14px;font-weight:700;color:' + colors.text + ';">' + value + '</div>'
+                            + '<div style="font-size:10px;opacity:0.6;margin-top:2px;">' + label + '</div></div>';
+                    }
+
+                    var html = '<div style="display:grid;grid-template-columns:repeat(2,1fr);gap:6px;margin-bottom:10px;">'
+                        + card('fa-shield-check', 'Status', status, color)
+                        + card('fa-toggle-on', 'Enabled', enabled, info.enabled ? '#4caf50' : '#f44336')
+                        + card('fa-clock', 'Poll', poll, '#2196f3')
+                        + card('fa-shield-halved', 'Policy', policy, '#ffb300')
+                        + card('fa-bell', 'Notify', notify, '#00bcd4')
+                        + card('fa-eye', 'Seen', seen, '#9c27b0')
+                        + '</div>';
+
+                    html += '<div style="display:flex;flex-wrap:wrap;gap:8px;justify-content:center;">'
+                        + '<button id="lt-sentinel-toggle" style="padding:10px 14px;background:' + (info.enabled ? '#f44336' : '#4caf50') + ';color:#fff;border:none;border-radius:8px;cursor:pointer;min-width:140px;">' + (info.enabled ? 'Disable Sentinel' : 'Enable Sentinel') + '</button>'
+                        + '<button id="lt-sentinel-run" style="padding:10px 14px;background:' + (info.running ? '#ff9800' : '#1976d2') + ';color:#fff;border:none;border-radius:8px;cursor:pointer;min-width:140px;">' + (info.running ? 'Stop Sentinel' : 'Start Sentinel') + '</button>'
+                        + '<button id="lt-sentinel-staleness" style="padding:10px 14px;background:#673ab7;color:#fff;border:none;border-radius:8px;cursor:pointer;min-width:160px;">Check Manifest Staleness</button>'
+                        + '<button id="lt-sentinel-refresh" style="padding:10px 14px;background:rgba(255,255,255,0.08);color:#fff;border:1px solid rgba(255,255,255,0.12);border-radius:8px;cursor:pointer;min-width:120px;">Refresh</button>'
+                        + '</div>';
+                    html += '<div id="lt-sentinel-results" style="margin-top:12px;max-height:40vh;overflow-y:auto;"></div>';
+
+                    body.innerHTML = html;
+
+                    var resultsContainer = document.getElementById('lt-sentinel-results');
+                    if (resultsContainer) {
+                        resultsContainer.innerHTML = '<div style="text-align:center;padding:10px;color:' + colors.accent + '"><i class="fa-solid fa-info-circle" style="margin-right:6px;"></i>Press \"Check Manifest Staleness\" to scan installed Lua scripts.</div>';
+                    }
+
+                    document.getElementById('lt-sentinel-toggle').onclick = function () {
+                        var value = !info.enabled;
+                        Millennium.callServerMethod('luatools', 'SetSentinelConfig', { config_json: JSON.stringify({ enabled: value }), contentScriptQuery: '' })
+                            .then(function (r) {
+                                var result = typeof r === 'string' ? JSON.parse(r) : r;
+                                if (result.success) {
+                                    showLuaToolsToast('Sentinel ' + (value ? 'enabled' : 'disabled'), 2500, 'success');
+                                    showSentinelPanel();
+                                } else {
+                                    showLuaToolsToast('Sentinel update failed', 2500, 'error');
+                                }
+                            }).catch(function () { showLuaToolsToast('Sentinel update failed', 2500, 'error'); });
+                    };
+
+                    document.getElementById('lt-sentinel-run').onclick = function () {
+                        var method = info.running ? 'StopSentinel' : 'StartSentinel';
+                        Millennium.callServerMethod('luatools', method, { contentScriptQuery: '' })
+                            .then(function (r) {
+                                var result = typeof r === 'string' ? JSON.parse(r) : r;
+                                if (result.success) {
+                                    showLuaToolsToast('Sentinel ' + (info.running ? 'stopped' : 'started'), 2500, 'success');
+                                    showSentinelPanel();
+                                } else {
+                                    showLuaToolsToast(result.message || 'Sentinel action failed', 2500, 'error');
+                                }
+                            }).catch(function () { showLuaToolsToast('Sentinel action failed', 2500, 'error'); });
+                    };
+
+                    document.getElementById('lt-sentinel-refresh').onclick = function () {
+                        showSentinelPanel();
+                    };
+
+                    document.getElementById('lt-sentinel-staleness').onclick = function () {
+                        if (!resultsContainer) {
+                            return;
+                        }
+                        resultsContainer.innerHTML = '<div style="text-align:center;padding:10px;color:' + colors.accent + '"><i class="fa-solid fa-spinner fa-spin" style="font-size:14px;"></i> Checking manifest staleness…</div>';
+                        Millennium.callServerMethod('luatools', 'CheckManifestStaleness', { appid: 0, contentScriptQuery: '' })
+                            .then(function (r) {
+                                var result = typeof r === 'string' ? JSON.parse(r) : r;
+                                if (!result.success) {
+                                    resultsContainer.innerHTML = '<div style="color:#f44336;">Error: ' + (result.error || 'Unknown') + '</div>';
+                                    return;
+                                }
+                                var html = '<div style="display:flex;flex-direction:column;gap:10px;">';
+                                html += '<div style="font-size:13px;font-weight:700;color:' + colors.text + ';">Staleness scan complete — ' + (result.total_checked || 0) + ' app(s), ' + (result.total_stale || 0) + ' stale.</div>';
+                                if (result.results && result.results.length) {
+                                    result.results.slice(0, 10).forEach(function (app) {
+                                        html += '<div style="padding:10px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:8px;">'
+                                            + '<div style="font-size:13px;font-weight:600;">AppID ' + (app.appid || 'n/a') + ' — ' + (app.stale ? '<span style="color:#f44336;">Stale</span>' : '<span style="color:#4caf50;">Up to date</span>') + '</div>'
+                                            + '<div style="font-size:11px;color:' + colors.textSecondary + ';margin-top:6px;">Depots: ' + (app.total_depots || 0) + ', stale: ' + (app.stale_count || 0) + '</div>'
+                                            + '</div>';
+                                    });
+                                    if (result.results.length > 10) {
+                                        html += '<div style="font-size:11px;color:' + colors.textSecondary + ';">Showing first 10 results of ' + result.results.length + '.</div>';
+                                    }
+                                } else {
+                                    html += '<div style="font-size:12px;color:' + colors.textSecondary + ';">No installed Lua scripts were scanned or no stale manifests were detected.</div>';
+                                }
+                                html += '</div>';
+                                resultsContainer.innerHTML = html;
+                            })
+                            .catch(function (err) {
+                                resultsContainer.innerHTML = '<div style="color:#f44336;">Failed: ' + err + '</div>';
+                            });
+                    };
+                })
+                .catch(function (err) {
+                    body.innerHTML = '<div style="color:#f44336;">Failed: ' + err + '</div>';
+                });
         });
     }
 
