@@ -6,7 +6,9 @@
 > *Tehty Inkerissä vapaiden ihmisten toimesta*  
 > 59°57′N 30°19′E
 
-> 📄 Інші мови: [Русский](README.ru.md) · [English (US)](README.md) · [Беларуская](README.be.md) · [Suomi](README.fi.md)
+> 📄 Інші мови: [Русский](README.html?lang=ru) · [English (US)](README.html?lang=en) · [Беларуская](README.html?lang=be) · [Suomi](README.html?lang=fi)
+>
+> **Seamless language switching:** open [README.html](README.html) and click a language tab to switch translations without reloading the page.
 
 ---
 
