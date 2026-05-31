@@ -36,8 +36,7 @@ The codebase is Python (backend) plus vanilla JavaScript (frontend), no build pi
 ```
 ltsteamplugin-ultimate/
 ├── plugin.json                     Millennium manifest
-├── README.md                       this file
-├── README.ru.md / .uk.md / .be.md / .fi.md
+├── README.md                       this file with all languages in one place
 ├── CLAUDE.md                       development context
 ├── SENTINEL_v9.md                  Sentinel design doc
 │
