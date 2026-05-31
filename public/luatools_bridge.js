@@ -30,20 +30,28 @@
             body: JSON.stringify(payload)
         }).then(function (res) {
             if (!res || !res.ok) {
-                throw new Error("LuaTools bridge unavailable (HTTP "
-                                 + (res ? res.status : "no response") + ")");
+                throw new Error(
+                    "LuaTools bridge unavailable (HTTP " +
+                    (res ? res.status : "no response") + ")"
+                );
             }
             return res.json();
         }).then(function (body) {
             if (!body || body.success !== true) {
-                throw new Error((body && body.error)
-                                ? String(body.error)
-                                : "LuaTools RPC failed");
+                throw new Error(
+                    (body && body.error)
+                        ? String(body.error)
+                        : "LuaTools RPC failed"
+                );
             }
             return body.result;
         }).catch(function (err) {
             if (typeof nativeCall === "function") {
-                console.warn("[LuaTools] bridge unavailable, falling back to native Millennium.callServerMethod:", err);
+                console.warn(
+                    "[LuaTools] bridge unavailable, falling back to native " +
+                    "Millennium.callServerMethod:",
+                    err
+                );
                 return nativeCall(plugin, method, args);
             }
             console.error("[LuaTools] bridge error:", err);
@@ -51,5 +59,7 @@
         });
     };
 
-    console.log("[LuaTools] Millennium 3.0 bridge shim active -> " + BRIDGE_URL);
+    console.log(
+        "[LuaTools] Millennium 3.0 bridge shim active -> " + BRIDGE_URL
+    );
 })();
