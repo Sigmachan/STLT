@@ -12,12 +12,39 @@
 
 ---
 
-## 🚀 Quick Start
+## 🚀 Quick Start & What Makes STLT Special
 
-**Windows:** `install.ps1` (creates venv + installs deps)  
-**Linux:** `install.sh` (same as Windows, different shell)  
-**After install:** Restart Steam or Millennium, navigate to plugin UI  
-**Documentation:** [Read in your language below](https://github.com/Sigmachan/STLT/blob/main/CLAUDE.md) • [Sentinel design](https://github.com/Sigmachan/STLT/blob/main/SENTINEL_v9.md)
+**Installation (both Windows & Linux):**
+```bash
+# Windows
+install.ps1  # Creates venv, installs Python deps
+
+# Linux
+./install.sh  # Same as Windows, runs in bash
+```
+
+**After install:** Restart Steam or Millennium → navigate to LuaTools plugin UI
+
+---
+
+### 🎯 Why STLT Over Original LuaTools?
+
+| Feature | LuaTools | STLT Ultimate |
+|---|---|---|
+| **Cross-Platform** | Windows only | Windows + Linux ✅ |
+| **Background Automation** | None | Sentinel daemon watches library ✅ |
+| **Account Management** | Basic | Full DPAPI switching, no restart ✅ |
+| **Denuvo Games** | Limited | Tokeer launcher integration ✅ |
+| **Source Chain** | 4 sources | 9 sources + custom APIs ✅ |
+| **Multi-Language UI** | English | 30+ languages ✅ |
+| **Profile Saving** | No | Per-game configs ✅ |
+| **Cloud Sync** | No | Git-based cross-machine sync ✅ |
+| **Workshop Mgmt** | No | Full subscription manager ✅ |
+| **Achievement Watch** | No | Read-only dashboard ✅ |
+
+**Tech Stack:** Python 3.11+ backend, vanilla JS frontend (no build pipeline)  
+**Millennium:** v3.0 or later required  
+**Docs:** [Architecture](https://github.com/Sigmachan/STLT/blob/main/CLAUDE.md) • [Sentinel daemon](https://github.com/Sigmachan/STLT/blob/main/SENTINEL_v9.md)
 
 ---
 
@@ -25,15 +52,11 @@
 
 ---
 
-## 📖 Choose Your Language
+## 📖 Documentation in Your Language
 
-| 🇺🇸 English | 🇷🇺 Русский | 🇺🇦 Українська | 🇧🇾 Беларуская | 🇫🇮 Suomi |
-|---|---|---|---|---|
-| Default, click to read | Русский перевод | Український переклад | Беларускі переклад | Suomalainen käännös |
+Click to expand:
 
----
-
-<details open>
+<details>
 <summary><strong>🇺🇸 English</strong></summary>
 
 **Version 9.0.7**
