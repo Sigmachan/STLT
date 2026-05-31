@@ -144,6 +144,11 @@ from tokeer_launcher import (
     configure_tokeer_launch as _tk_configure,
     remove_tokeer_launch as _tk_remove,
 )
+from compat_tools import (
+    set_compat_tool as _ct_set,
+    get_compat_tool_status as _ct_status,
+    fix_compat_tools_for_activated as _ct_fixall,
+)
 from sync_engine import (
     get_sync_config as _sync_get_cfg,
     set_sync_config as _sync_set_cfg,
@@ -1316,6 +1321,21 @@ def StopSentinel(contentScriptQuery: str = "") -> str:
 def GetSentinelStatus(contentScriptQuery: str = "") -> str:
     """Get Sentinel daemon status and configuration."""
     return _sentinel_status()
+
+def SetCompatTool(appid: int = 0, tool: str = "proton_experimental", force: bool = False, contentScriptQuery: str = "") -> str:
+    """Set the Steam Play (Proton) compatibility tool for one appid (Linux)."""
+    return _ct_set(appid=appid, tool=tool, force=force, contentScriptQuery=contentScriptQuery)
+
+
+def GetCompatToolStatus(contentScriptQuery: str = "") -> str:
+    """List current Proton compatibility-tool mappings (Linux)."""
+    return _ct_status(contentScriptQuery)
+
+
+def FixCompatToolsForActivated(tool: str = "proton_experimental", force: bool = False, contentScriptQuery: str = "") -> str:
+    """Assign a Proton compat tool to every activated game that lacks one (Linux)."""
+    return _ct_fixall(tool=tool, force=force, contentScriptQuery=contentScriptQuery)
+
 
 def GetLinuxPlatformStatus(contentScriptQuery: str = "") -> str:
     """Report Linux platform state: Steam root, SLSsteam/ACCELA presence,

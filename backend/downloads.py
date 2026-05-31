@@ -597,6 +597,21 @@ def _process_and_install_lua(appid: int, zip_path: str) -> None:
 
     _safe_remove(zip_path)
 
+    # Linux: auto-assign a Proton compatibility tool so the game is launchable
+    # (activated games otherwise fail with "error occurred while launching").
+    # Best-effort, never blocks or raises; gated by the autoCompatTool setting.
+    try:
+        import sys as _sys
+        if not _sys.platform.startswith("win"):
+            from settings.manager import get_steamtools_settings as _gss
+            _cfg = (_gss() or {}).get("general", {})
+            if _cfg.get("autoCompatTool", True):
+                import compat_tools as _ct
+                _tool = _cfg.get("compatTool") or _ct.DEFAULT_TOOL
+                _ct.auto_set_on_activation(appid, _tool)
+    except Exception as _exc:
+        logger.warn(f"LuaTools: auto compat-tool set skipped for {appid}: {_exc}")
+
 
 def _is_download_cancelled(appid: int) -> bool:
     try:
@@ -876,11 +891,22 @@ def _download_zip_for_app(appid: int):
             if not fetched_any:
                 return False
 
-            # Create lua and wrap in zip
-            lua_text = "\n".join(lua_lines)
-            wrap_lua_in_zip(lua_text)
-            finalize("ManifestHub API")
-            return True
+            # The ManifestHub API returns manifest IDs + manifest files, but
+            # NOT depot decryption keys. Building a .lua here yields
+            #   addappid(depot, manifest_id, "")   <- empty key, wrong arg slot
+            # which lets Steam register the depot but never decrypt/download
+            # real files (the "manifest template, no download" bug). We keep
+            # the manifests we just cached to depotcache (a useful supplement)
+            # but DO NOT finalize a keyless activation. Returning False lets the
+            # chain fall through to a KEYED source (GitHub repos, Ryuu,
+            # DepotBox, raw-lua fallbacks) that ships real depot keys, e.g.
+            #   addappid(590831, 0, "5368f87f...")  <- 64-char hex depot key
+            logger.log(
+                f"LuaTools: ManifestHub API cached {len(lua_lines) - 1} manifest(s) "
+                f"for {appid} but provides no depot keys; deferring activation to a "
+                f"keyed source so the game can actually download"
+            )
+            return False
         except Exception as exc:
             logger.warn(f"LuaTools: ManifestHub API error: {exc}")
             return False

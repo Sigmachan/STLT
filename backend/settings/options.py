@@ -63,6 +63,25 @@ SETTINGS_GROUPS: List[SettingGroup] = [
                 metadata={"dynamicChoices": "themes"},
             ),
             SettingOption(
+                key="autoCompatTool",
+                label="Auto-set Proton compatibility tool (Linux)",
+                option_type="boolean",
+                description="On Linux, automatically assign a Steam Play (Proton) "
+                            "compatibility tool when a game is activated, so it "
+                            "launches without the 'error occurred while launching' issue.",
+                default=True,
+                metadata={"yesLabel": "On", "noLabel": "Off"},
+            ),
+            SettingOption(
+                key="compatTool",
+                label="Default Proton tool (Linux)",
+                option_type="text",
+                description="Compatibility tool name written to config.vdf "
+                            "(e.g. proton_experimental, proton_9, GE-Proton9-20).",
+                default="proton_experimental",
+                metadata={"placeholder": "proton_experimental"},
+            ),
+            SettingOption(
                 key="morrenusApiKey",
                 label="Morrenus API Key",
                 option_type="text",

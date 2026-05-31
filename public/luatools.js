@@ -1265,6 +1265,7 @@
             const backupBtn = createMenuButton('lt-st-backup', 'menu.backupRestore', '💾 Backup & Restore', 'fa-box-archive');
             const customApisBtn = createMenuButton('lt-st-custom-apis', 'menu.customApis', '🔌 Custom API Sources', 'fa-plug');
             const smartRestartBtn = createMenuButton('lt-st-smart-restart', 'menu.smartRestart', '🔄 Smart Restart Steam', 'fa-rotate');
+            const compatToolBtn = createMenuButton('lt-st-compat-tool', 'menu.compatTool', '🎮 Fix Proton Compatibility', 'fa-wrench');
 
             body.appendChild(container);
 
@@ -1314,6 +1315,39 @@
                     var existingOvs = document.querySelectorAll('.luatools-overlay, .luatools-settings-overlay');
                     existingOvs.forEach(function(o) { o.remove(); });
                     showRepairDepotCachePanel();
+                });
+            }
+            if (compatToolBtn) {
+                compatToolBtn.addEventListener('click', function (e) {
+                    e.preventDefault();
+                    try { overlay.remove(); } catch (_) { }
+                    Millennium.callServerMethod('luatools', 'GetCompatToolStatus', { contentScriptQuery: '' })
+                        .then(function (raw) {
+                            var st = (typeof raw === 'string') ? JSON.parse(raw) : raw;
+                            if (st && st.platform === 'windows') {
+                                window.alert('Proton compatibility tools are a Linux-only feature — Windows games run natively.');
+                                return;
+                            }
+                            var count = (st && st.mappings) ? Object.keys(st.mappings).length : 0;
+                            var msg = 'Assign Proton (proton_experimental) to every activated game that lacks a compatibility tool?\n\n'
+                                + 'Currently mapped games: ' + count + '\n\n'
+                                + 'IMPORTANT: close Steam first — config.vdf is only saved when Steam exits, so changes made while it is open are lost.';
+                            if (!window.confirm(msg)) return;
+                            Millennium.callServerMethod('luatools', 'FixCompatToolsForActivated', { tool: 'proton_experimental', force: false, contentScriptQuery: '' })
+                                .then(function (raw2) {
+                                    var r = (typeof raw2 === 'string') ? JSON.parse(raw2) : raw2;
+                                    if (r && r.error === 'steam_running') {
+                                        window.alert('Please close Steam first, then run this again.');
+                                    } else if (r && r.success) {
+                                        var fixed = (r.fixed || []).length;
+                                        window.alert('Done. Compatibility tool set for ' + fixed + ' game(s).'
+                                            + (r.backup ? '\nBackup: ' + r.backup : '')
+                                            + '\n\nRestart Steam for changes to take effect.');
+                                    } else {
+                                        window.alert('Could not apply: ' + ((r && r.error) || 'unknown error'));
+                                    }
+                                });
+                        });
                 });
             }
             if (acctTransferBtn) {
