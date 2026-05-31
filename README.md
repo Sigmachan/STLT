@@ -1,15 +1,7 @@
 # LuaTools Ultimate
 
-[English](#en) · [Русский](#ru) · [Українська](#uk) · [Беларуская](#be) · [Suomi](#fi)
-
-> **One file, one README:** click a language above to jump to that section in the same file without reloading.
->
-> If you want a compact readme view, use your editor's search or collapse blocks.
-
----
-
-<a id="en"></a>
-## English
+<details>
+<summary><strong>English</strong></summary>
 
 **Version 9.0.7**
 
@@ -17,10 +9,6 @@
 > *Tehty Inkerissä vapaiden ihmisten toimesta*  
 > 59°57′N 30°19′E
 
-> 📄 Other languages: [Русский](#ru) · [Українська](#uk) · [Беларуская](#be) · [Suomi](#fi)
->
-> **Click a language above to jump to that section in the same file.**
->
 ---
 
 ## 1. What this is
@@ -262,18 +250,16 @@ The plugin contains no political symbols, no flag patterns, no slogans. The defa
 
 ---
 
-<a id="ru"></a>
-## Русский
+</details>
+
+<details>
+<summary><strong>Русский</strong></summary>
 
 **Версия 9.0.7**
 
 > *Made in Ingria by Free People*  
 > *Tehty Inkerissä vapaiden ihmisten toimesta*  
 > 59°57′N 30°19′E
-
-> 📄 Другие языки: [English (US)](#en) · [Українська](#uk) · [Беларуская](#be) · [Suomi](#fi)
->
-> **Click a language above to jump to that section in the same file.**
 
 ---
 
@@ -522,18 +508,16 @@ GetSentinelService() / InstallSentinelService()
 
 ---
 
-<a id="uk"></a>
-## Українська
+</details>
+
+<details>
+<summary><strong>Українська</strong></summary>
 
 **Версія 9.0.7**
 
 > *Made in Ingria by Free People*  
 > *Tehty Inkerissä vapaiden ihmisten toimesta*  
 > 59°57′N 30°19′E
-
-> 📄 Інші мови: [Русский](#ru) · [English (US)](#en) · [Беларуская](#be) · [Suomi](#fi)
->
-> **Click a language above to jump to that section in the same file.**
 
 ---
 
@@ -776,18 +760,16 @@ GetSentinelService() / InstallSentinelService()
 
 ---
 
-<a id="be"></a>
-## Беларуская
+</details>
+
+<details>
+<summary><strong>Беларуская</strong></summary>
 
 **Версія 9.0.7**
 
 > *Made in Ingria by Free People*  
 > *Tehty Inkerissä vapaiden ihmisten toimesta*  
 > 59°57′N 30°19′E
-
-> 📄 Іншыя мовы: [Русский](#ru) · [English (US)](#en) · [Українська](#uk) · [Suomi](#fi)
->
-> **Click a language above to jump to that section in the same file.**
 
 ---
 
@@ -1030,18 +1012,16 @@ GetSentinelService() / InstallSentinelService()
 
 ---
 
-<a id="fi"></a>
-## Suomi
+</details>
+
+<details>
+<summary><strong>Suomi</strong></summary>
 
 **Versio 9.0.7**
 
 > *Made in Ingria by Free People*  
 > *Tehty Inkerissä vapaiden ihmisten toimesta*  
 > 59°57′N 30°19′E
-
-> 📄 Muut kielet: [Русский](#ru) · [English (US)](#en) · [Українська](#uk) · [Беларуская](#be)
->
-> **Click a language above to jump to that section in the same file.**
 
 ---
 
@@ -1285,3 +1265,6 @@ Ohjelmisto ei sisällä poliittisia tunnuksia, lippukuvioita eikä iskulauseita.
 *Tekniset termit esitetään vakiintuneessa englanninkielisessä muodossa, jotta koodihaku pysyy yhtenäisenä kielten välillä.*
 
 ---
+
+</details>
+
