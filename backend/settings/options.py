@@ -73,6 +73,16 @@ SETTINGS_GROUPS: List[SettingGroup] = [
                 metadata={"yesLabel": "On", "noLabel": "Off"},
             ),
             SettingOption(
+                key="autoActivateLinux",
+                label="Auto-activate games on Linux (ACF + config.vdf)",
+                option_type="boolean",
+                description="On Linux, automatically write ACF files and inject "
+                            "depot keys into config.vdf after Lua manifest "
+                            "installation. Ported from SteaMidra/SFF approach.",
+                default=True,
+                metadata={"yesLabel": "On", "noLabel": "Off"},
+            ),
+            SettingOption(
                 key="compatTool",
                 label="Default Proton tool (Linux)",
                 option_type="text",

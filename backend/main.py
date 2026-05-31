@@ -149,6 +149,11 @@ from compat_tools import (
     get_compat_tool_status as _ct_status,
     fix_compat_tools_for_activated as _ct_fixall,
 )
+from acf_writer import (
+    activate_game_on_linux as _acf_activate,
+    write_acf as _acf_write,
+    patch_workshop_acf as _acf_patch_workshop,
+)
 from sync_engine import (
     get_sync_config as _sync_get_cfg,
     set_sync_config as _sync_set_cfg,
@@ -1335,6 +1340,67 @@ def GetCompatToolStatus(contentScriptQuery: str = "") -> str:
 def FixCompatToolsForActivated(tool: str = "proton_experimental", force: bool = False, contentScriptQuery: str = "") -> str:
     """Assign a Proton compat tool to every activated game that lacks one (Linux)."""
     return _ct_fixall(tool=tool, force=force, contentScriptQuery=contentScriptQuery)
+
+
+def ActivateGameLinux(appid: int = 0, contentScriptQuery: str = "") -> str:
+    """Trigger full Linux activation: ACF write + config.vdf key injection + workshop patch."""
+    import json as _json
+    if sys.platform.startswith("win"):
+        return _json.dumps({"success": False, "error": "Linux-only feature"})
+    try:
+        # Re-extract depot keys from the installed Lua file
+        from downloads import get_installed_lua_scripts as _gils
+        lua_files = _gils()
+        appid_str = str(appid)
+        lua_path = None
+        for lf in lua_files:
+            if str(lf.get("appid", "")) == appid_str:
+                lua_path = lf.get("path")
+                break
+        if not lua_path or not os.path.exists(lua_path):
+            return _json.dumps({"success": False, "error": f"No installed Lua manifest found for {appid}"})
+
+        with open(lua_path, "r", encoding="utf-8", errors="replace") as f:
+            lua_text = f.read()
+
+        _depot_keys: list = []
+        _manifest_ids: dict = {}
+        import re as _re
+        for _line in lua_text.splitlines():
+            _mk = _re.search(r'addappid\s*\(\s*(\d+)\s*,\s*\d+\s*,\s*"([a-fA-F0-9]{64})"', _line)
+            if _mk:
+                _depot_keys.append((_mk.group(1), _mk.group(2)))
+            _ms = _re.search(r'setManifestid\s*\(\s*(\d+)\s*,\s*"([0-9a-fA-F]+)"', _line)
+            if _ms:
+                _manifest_ids[_ms.group(1)] = _ms.group(2)
+
+        if not _depot_keys:
+            return _json.dumps({"success": False, "error": f"No depot keys found in Lua manifest for {appid}"})
+
+        result = _acf_activate(appid, _depot_keys, _manifest_ids)
+        return _json.dumps(result)
+    except Exception as exc:
+        return _json.dumps({"success": False, "error": str(exc)})
+
+
+def WriteAcf(appid: int = 0, installDir: str = "", contentScriptQuery: str = "") -> str:
+    """Write or update an ACF file for the given AppID."""
+    import json as _json
+    try:
+        result = _acf_write(appid, installDir)
+        return _json.dumps(result)
+    except Exception as exc:
+        return _json.dumps({"success": False, "error": str(exc)})
+
+
+def PatchWorkshopAcf(appid: int = 0, contentScriptQuery: str = "") -> str:
+    """Patch workshop ACF files to bypass Steam workshop restrictions."""
+    import json as _json
+    try:
+        result = _acf_patch_workshop(appid)
+        return _json.dumps(result)
+    except Exception as exc:
+        return _json.dumps({"success": False, "error": str(exc)})
 
 
 def GetLinuxPlatformStatus(contentScriptQuery: str = "") -> str:

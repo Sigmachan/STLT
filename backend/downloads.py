@@ -580,11 +580,33 @@ def _process_and_install_lua(appid: int, zip_path: str) -> None:
             text = data.decode("utf-8", errors="replace")
 
         processed_lines = []
+        stub_count = 0
         for line in text.splitlines(True):
-            if re.match(r"^\s*setManifestid\(", line) and not re.match(r"^\s*--", line):
+            stripped = line.strip()
+            # Skip commented lines as-is
+            if stripped.startswith("--"):
+                processed_lines.append(line)
+                continue
+            # Comment out active setManifestid() calls
+            if re.match(r"^\s*setManifestid\(", line):
                 line = re.sub(r"^(\s*)", r"\1--", line)
+                processed_lines.append(line)
+                continue
+            # Filter out stub addappid() lines that have no depot key
+            # Valid: addappid(depot, manifest_id, "key") or addappid(depot, 0, "key")
+            # Stub:  addappid(appid) — useless placeholder, no decryption key
+            m = re.match(r"^\s*addappid\s*\(", stripped)
+            if m:
+                # Check if this line contains a quoted depot key (64-char hex)
+                key_match = re.search(r',\s*"[a-fA-F0-9]{64}"', line)
+                if not key_match:
+                    # Stub line — no depot key, skip it
+                    stub_count += 1
+                    continue
             processed_lines.append(line)
         processed_text = "".join(processed_lines)
+        if stub_count:
+            logger.log(f"LuaTools: Filtered {stub_count} stub addappid() line(s) without depot keys for {appid}")
 
         _set_download_state(appid, {"status": "installing"})
         dest_file = os.path.join(target_dir, f"{appid}.lua")
@@ -597,20 +619,54 @@ def _process_and_install_lua(appid: int, zip_path: str) -> None:
 
     _safe_remove(zip_path)
 
-    # Linux: auto-assign a Proton compatibility tool so the game is launchable
-    # (activated games otherwise fail with "error occurred while launching").
-    # Best-effort, never blocks or raises; gated by the autoCompatTool setting.
+    # Linux: auto-activate via ACF + config.vdf (ported from SteaMidra)
+    # Best-effort, never blocks or raises; gated by the autoActivateLinux setting.
     try:
         import sys as _sys
         if not _sys.platform.startswith("win"):
             from settings.manager import get_steamtools_settings as _gss
             _cfg = (_gss() or {}).get("general", {})
-            if _cfg.get("autoCompatTool", True):
+            if _cfg.get("autoActivateLinux", True):
+                # Extract depot keys from the processed Lua text
+                _depot_keys: list = []
+                _manifest_ids: dict = {}
+                for _line in processed_text.splitlines():
+                    _stripped = _line.strip()
+                    # Match addappid(depot, 0, "key") - extract the actual key
+                    _mk = re.search(r'addappid\s*\(\s*(\d+)\s*,\s*\d+\s*,\s*"([a-fA-F0-9]{64})"', _stripped)
+                    if _mk:
+                        _depot_keys.append((_mk.group(1), _mk.group(2)))
+                    # Match setManifestid(depot, "gid")
+                    _ms = re.search(r'setManifestid\s*\(\s*(\d+)\s*,\s*"([0-9a-fA-F]+)"', _stripped)
+                    if _ms:
+                        _manifest_ids[_ms.group(1)] = _ms.group(2)
+
+                if _depot_keys:
+                    try:
+                        import acf_writer as _aw
+                        _result = _aw.activate_game_on_linux(
+                            appid, _depot_keys, _manifest_ids
+                        )
+                        if _result.get("success"):
+                            logger.log(
+                                f"LuaTools: Linux activation complete for {appid} "
+                                f"(ACF={_result.get('acf_written')}, "
+                                f"keys={_result.get('keys_added')})"
+                            )
+                        else:
+                            for _err in _result.get("errors", []):
+                                logger.warn(f"LuaTools: Linux activation warning: {_err}")
+                    except Exception as _ae:
+                        logger.warn(f"LuaTools: Linux activation failed: {_ae}")
+
+            # Auto compat tool (existing logic)
+            _cfg2 = (_gss() or {}).get("general", {})
+            if _cfg2.get("autoCompatTool", True):
                 import compat_tools as _ct
-                _tool = _cfg.get("compatTool") or _ct.DEFAULT_TOOL
+                _tool = _cfg2.get("compatTool") or _ct.DEFAULT_TOOL
                 _ct.auto_set_on_activation(appid, _tool)
     except Exception as _exc:
-        logger.warn(f"LuaTools: auto compat-tool set skipped for {appid}: {_exc}")
+        logger.warn(f"LuaTools: post-install Linux setup skipped for {appid}: {_exc}")
 
 
 def _is_download_cancelled(appid: int) -> bool:
@@ -1074,9 +1130,12 @@ def _download_zip_for_app(appid: int):
                 raise DownloadCancelled()
         return False
 
-    def _try_single_api(url, success_code, unavailable_code):
+    def _try_single_api(url, success_code, unavailable_code, extra_headers=None):
         """Try a single Free API endpoint."""
-        with client.stream("GET", url, headers={"User-Agent": USER_AGENT}, follow_redirects=True) as resp:
+        req_headers = {"User-Agent": USER_AGENT}
+        if extra_headers:
+            req_headers.update(extra_headers)
+        with client.stream("GET", url, headers=req_headers, follow_redirects=True) as resp:
             code = resp.status_code
             if code == unavailable_code:
                 return False
