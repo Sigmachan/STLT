@@ -24,25 +24,22 @@ else:
 
 
 def detect_steam_install_path() -> str:
-    """Return the cached Steam installation path or discover it."""
+    """Return the cached Steam installation path or discover it.
+
+    Delegates to paths.get_steam_path(), which resolves Steam across
+    platforms: Millennium API -> registry (Windows) -> candidate scan
+    (Linux native / Flatpak / Snap), with symlink resolution.
+    """
     global _STEAM_INSTALL_PATH
     if _STEAM_INSTALL_PATH:
         return _STEAM_INSTALL_PATH
 
-    path = None
-
-    if sys.platform.startswith("win") and winreg is not None:
-        try:
-            with winreg.OpenKey(winreg.HKEY_CURRENT_USER, r"Software\Valve\Steam") as key:
-                path, _ = winreg.QueryValueEx(key, "SteamPath")
-        except Exception:
-            path = None
-
-    if not path:
-        try:
-            path = Millennium.steam_path()
-        except Exception:
-            path = None
+    try:
+        from paths import get_steam_path
+        path = get_steam_path()
+    except Exception as exc:
+        logger.warn(f"LuaTools: get_steam_path failed: {exc}")
+        path = ""
 
     _STEAM_INSTALL_PATH = path
     logger.log(f"LuaTools: Steam install path set to {_STEAM_INSTALL_PATH}")
@@ -88,9 +85,10 @@ def _parse_vdf_simple(content: str) -> Dict[str, any]:
 
 
 def _find_steam_path() -> str:
-    global _STEAM_INSTALL_PATH
-    if _STEAM_INSTALL_PATH:
-        return _STEAM_INSTALL_PATH
+    # Unified resolver — same Linux-aware logic as detect_steam_install_path.
+    resolved = detect_steam_install_path()
+    if resolved:
+        return resolved
 
     if sys.platform.startswith("win") and winreg:
         try:

@@ -1,0 +1,49 @@
+/*
+ * Ingria theme
+ * Made in Ingria by Free People
+ * Tehty Inkerissä vapaiden ihmisten toimesta
+ * 59°57′N 30°19′E
+ *
+ * Palette inspired by clear northern skies over the Gulf of Finland —
+ * the regional cultural identity of the territory around Saint Petersburg.
+ */
+
+:root {
+    --lt-bg-primary: #0a1929;
+    --lt-bg-secondary: #102a43;
+    --lt-bg-tertiary: rgba(10, 25, 41, 0.95);
+    --lt-bg-hover: rgba(16, 42, 67, 0.95);
+    --lt-bg-container: rgba(10, 25, 41, 0.8);
+    --lt-bg-container-gradient: rgba(10, 25, 41, 0.9), #0a1929;
+    --lt-accent: #00a7e6;
+    --lt-accent-light: #ffffff;
+    --lt-accent-dark: #0086c3;
+    --lt-border: rgba(0, 167, 230, 0.35);
+    --lt-border-hover: rgba(255, 255, 255, 0.8);
+    --lt-text: #ffffff;
+    --lt-text-secondary: #d8edf8;
+    --lt-gradient: linear-gradient(135deg, #5cc4ee 0%, #00a7e6 100%);
+    --lt-gradient-light: linear-gradient(135deg, #ffffff 0%, #5cc4ee 100%);
+    --lt-shadow: rgba(0, 167, 230, 0.4);
+    --lt-shadow-hover: rgba(255, 255, 255, 0.6);
+    --lt-shadow-rgba: rgba(0, 167, 230, 0.3);
+    --lt-rgb: 0,167,230;
+}
+
+select {
+    background-color: rgba(10, 25, 41, 0.95) !important;
+    color: #ffffff !important;
+    border: 1px solid rgba(0, 167, 230, 0.35) !important;
+    border-radius: 3px;
+}
+
+select option {
+    background-color: #0a1929;
+    color: #ffffff;
+}
+
+select option:checked {
+    background: linear-gradient(#00a7e6, #00a7e6);
+    background-color: #00a7e6 !important;
+    color: #ffffff !important;
+}

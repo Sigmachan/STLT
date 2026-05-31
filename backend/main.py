@@ -14,7 +14,7 @@ import sys
 import threading
 import webbrowser
 
-from typing import Any
+from typing import Any, Dict
 
 import Millennium  # type: ignore
 import PluginUtils  # type: ignore
@@ -88,6 +88,7 @@ from steamtools import (
     seed_achievement_files,
     get_active_accounts,
     repair_depot_cache,
+    get_dlc_overview,
 )
 from utils import ensure_temp_download_dir
 from http_client import close_http_client, ensure_http_client
@@ -132,6 +133,54 @@ from key_vault import (
     delete_profile as _kv_delete,
     export_profile as _kv_export,
     import_profile as _kv_import,
+)
+from account_switch import (
+    extract_login_tokens as _as_extract,
+    switch_to_account as _as_switch,
+)
+from tokeer_launcher import (
+    list_tokeer_games as _tk_list,
+    check_tokeer_status as _tk_check,
+    configure_tokeer_launch as _tk_configure,
+    remove_tokeer_launch as _tk_remove,
+)
+from sync_engine import (
+    get_sync_config as _sync_get_cfg,
+    set_sync_config as _sync_set_cfg,
+    sync_push as _sync_push,
+    sync_pull as _sync_pull,
+    sync_status as _sync_status,
+    sync_test_connection as _sync_test,
+)
+from crack_migrator import (
+    scan_all_games as _cm_scan,
+    migrate_game as _cm_migrate,
+    undo_migration as _cm_undo,
+    list_migrations as _cm_list,
+)
+from profiles import (
+    list_profiles_for as _pr_list,
+    save_profile as _pr_save,
+    activate_profile as _pr_activate,
+    delete_profile as _pr_delete,
+    list_all_profiles as _pr_list_all,
+)
+from sentinel_service import (
+    get_service_status as _ss_status,
+    install_service as _ss_install,
+    uninstall_service as _ss_uninstall,
+    start_service_now as _ss_start,
+)
+from workshop_manager import (
+    list_subscribed as _ws_list_subs,
+    list_local_items as _ws_list_local,
+    download_item as _ws_download,
+    delete_item as _ws_delete,
+)
+from achievement_watch import (
+    get_game_progress as _aw_progress,
+    list_games_with_achievements as _aw_list,
+    get_recent_unlocks_across_games as _aw_recent,
 )
 from sentinel import (
     start_sentinel as _sentinel_start,
@@ -226,6 +275,17 @@ def _millennium_version() -> str:
     except Exception as exc:  # pragma: no cover - depends on host
         logger.warn(f"LuaTools: Millennium.version() unavailable: {exc}")
         return "unknown"
+
+
+def _plugin_version() -> str:
+    """Read this plugin's version from plugin.json at the project root."""
+    try:
+        import json as _json
+        from paths import get_plugin_dir as _gpd
+        with open(os.path.join(_gpd(), "plugin.json"), "r", encoding="utf-8") as _fh:
+            return str(_json.load(_fh).get("version", "?"))
+    except Exception:
+        return "?"
 
 
 def _inject_webkit_files() -> None:
@@ -836,6 +896,248 @@ def ImportKeyProfile(blob: str = "", nameOverride: str = "",
     return _kv_import(blob, nameOverride, bool(activate), contentScriptQuery)
 
 
+# ── Quick Account Switch (DPAPI-based) ─────────────────────────────────
+
+def ExtractLoginTokens(contentScriptQuery: str = "") -> str:
+    """Decrypt all DPAPI-saved Steam refresh tokens and match to account names."""
+    return _as_extract(contentScriptQuery)
+
+
+def SwitchToAccount(accountName: str = "", contentScriptQuery: str = "") -> str:
+    """Restart Steam logged in as the given account.
+
+    Steam is killed, MostRecent is flipped in loginusers.vdf, Steam relaunches
+    via steam://0 and auto-logs in to the chosen account.
+    """
+    return _as_switch(accountName, contentScriptQuery)
+
+
+# ── Tokeer launcher auto-config (Denuvo bypass) ────────────────────────
+
+def ListTokeerGames(contentScriptQuery: str = "") -> str:
+    """Full Tokeer-compatible games list with per-game installation status."""
+    return _tk_list(contentScriptQuery)
+
+
+def CheckTokeerStatus(appid: int, accountId32: int = 0,
+                      contentScriptQuery: str = "") -> str:
+    """Check Tokeer status for an AppID: supported, installed, configured?"""
+    return _tk_check(int(appid), int(accountId32), contentScriptQuery)
+
+
+def ConfigureTokeerLaunch(appid: int, accountId32: int,
+                          contentScriptQuery: str = "") -> str:
+    """Write Tokeer launch options into localconfig.vdf for given account."""
+    return _tk_configure(int(appid), int(accountId32), contentScriptQuery)
+
+
+def RemoveTokeerLaunch(appid: int, accountId32: int,
+                       contentScriptQuery: str = "") -> str:
+    """Clear LaunchOptions for given AppID/account."""
+    return _tk_remove(int(appid), int(accountId32), contentScriptQuery)
+
+
+# ── Multi-machine sync (v9.0) ─────────────────────────────────────────
+
+def GetSyncConfig(contentScriptQuery: str = "") -> str:
+    """Return current sync engine configuration."""
+    return _sync_get_cfg(contentScriptQuery)
+
+
+def SetSyncConfig(updates: Dict[str, Any] = None,
+                  contentScriptQuery: str = "", **kwargs: Any) -> str:
+    """Update sync config. Pass partial dict — shallow-merged into existing config."""
+    if updates is None:
+        updates = kwargs.get("config", {})
+    return _sync_set_cfg(updates if isinstance(updates, dict) else {}, contentScriptQuery)
+
+
+def SyncPush(contentScriptQuery: str = "") -> str:
+    """Stage all syncable state and push to remote (git push or folder copy)."""
+    return _sync_push(contentScriptQuery)
+
+
+def SyncPull(dryRun: bool = False, contentScriptQuery: str = "") -> str:
+    """Pull from remote and apply locally. Set dryRun=True to preview only."""
+    return _sync_pull(bool(dryRun), contentScriptQuery)
+
+
+def SyncStatus(contentScriptQuery: str = "") -> str:
+    """Return current sync state and counts."""
+    return _sync_status(contentScriptQuery)
+
+
+def SyncTestConnection(contentScriptQuery: str = "") -> str:
+    """Verify the configured remote is reachable without writing anything."""
+    return _sync_test(contentScriptQuery)
+
+
+# ── Crack auto-migration (v9.0) ───────────────────────────────────────
+
+def ScanCrackedGames(contentScriptQuery: str = "") -> str:
+    """Scan every installed game for crack signatures; classify by family.
+
+    Returns per-game: detected crack family, confidence score, file list,
+    and whether LuaTools already manages this appid.
+    """
+    return _cm_scan(contentScriptQuery)
+
+
+def MigrateGame(appid: int, dryRun: bool = True,
+                contentScriptQuery: str = "") -> str:
+    """Move crack files to _luatools_migration_<ts>/ backup.
+
+    dryRun=True returns the plan only (default — safe).
+    dryRun=False actually moves files. Original files are kept side-by-side
+    in a timestamped backup folder for safe rollback.
+    """
+    return _cm_migrate(int(appid), bool(dryRun), contentScriptQuery)
+
+
+def UndoMigration(appid: int, backupDir: str = "",
+                  contentScriptQuery: str = "") -> str:
+    """Restore crack files from most recent (or specified) migration backup."""
+    return _cm_undo(int(appid), backupDir, contentScriptQuery)
+
+
+def ListMigrations(contentScriptQuery: str = "") -> str:
+    """Find every _luatools_migration_* backup across installed games."""
+    return _cm_list(contentScriptQuery)
+
+
+# ── DLC Overview (v9.0) ───────────────────────────────────────────────
+
+def GetDlcOverview(appid: int, contentScriptQuery: str = "") -> str:
+    """Show all DLCs for a game with status (active/missing/orphan in .lua)."""
+    return get_dlc_overview(int(appid))
+
+
+# ── Per-game profiles (v9.0) ──────────────────────────────────────────
+
+def ListProfilesFor(appid: int, contentScriptQuery: str = "") -> str:
+    """All saved profiles for an appid, with the active one flagged."""
+    return _pr_list(int(appid), contentScriptQuery)
+
+
+def SaveProfile(appid: int, name: str = "", description: str = "",
+                accountId32: int = 0,
+                contentScriptQuery: str = "") -> str:
+    """Snapshot current .lua + launch options as a named profile."""
+    return _pr_save(int(appid), name, description, int(accountId32),
+                    contentScriptQuery)
+
+
+def ActivateProfile(appid: int, slug: str = "",
+                    applyLaunchOptions: bool = True,
+                    accountId32: int = 0,
+                    contentScriptQuery: str = "") -> str:
+    """Restore a profile (lua + optionally launch options).
+
+    Automatically creates a .pre-activate-<ts>.json backup of the current
+    state before overwriting anything.
+    """
+    return _pr_activate(int(appid), slug,
+                        bool(applyLaunchOptions), int(accountId32),
+                        contentScriptQuery)
+
+
+def DeleteProfile(appid: int, slug: str = "",
+                  contentScriptQuery: str = "") -> str:
+    """Remove a saved profile."""
+    return _pr_delete(int(appid), slug, contentScriptQuery)
+
+
+def ListAllProfiles(contentScriptQuery: str = "") -> str:
+    """Cross-game inventory of all saved profiles."""
+    return _pr_list_all(contentScriptQuery)
+
+
+# ── Sentinel-as-Windows-service (v9.0.2) ──────────────────────────────
+
+def GetSentinelService(contentScriptQuery: str = "") -> str:
+    """Status of the LuaToolsSentinel scheduled task (installed/running/etc)."""
+    return _ss_status(contentScriptQuery)
+
+
+def InstallSentinelService(contentScriptQuery: str = "") -> str:
+    """Create the scheduled task — runs sentinel_worker.py at user login.
+
+    Uses schtasks.exe, runs as standard user (no UAC). Auto-detects pythonw.exe.
+    """
+    return _ss_install(contentScriptQuery)
+
+
+def UninstallSentinelService(contentScriptQuery: str = "") -> str:
+    """Remove the scheduled task (does not stop a currently-running worker)."""
+    return _ss_uninstall(contentScriptQuery)
+
+
+def StartSentinelServiceNow(contentScriptQuery: str = "") -> str:
+    """Trigger the scheduled task to run immediately, without waiting for login."""
+    return _ss_start(contentScriptQuery)
+
+
+# ── Steam Workshop content manager (v9.0.3) ───────────────────────────
+
+def ListWorkshopSubscribed(appid: int, accountId32: int,
+                           contentScriptQuery: str = "") -> str:
+    """All Workshop subscriptions for a game/account, with download status.
+
+    Uses the Steam Web API (ISteamRemoteStorage/GetPublishedFileDetails) to
+    fetch metadata + direct download URLs. Works without Steam authentication
+    since the API endpoint is public.
+    """
+    return _ws_list_subs(int(appid), int(accountId32), contentScriptQuery)
+
+
+def ListLocalWorkshopItems(appid: int, contentScriptQuery: str = "") -> str:
+    """All Workshop items currently downloaded for an appid (subscribed or not)."""
+    return _ws_list_local(int(appid), contentScriptQuery)
+
+
+def DownloadWorkshopItem(appid: int, workshopId: str = "",
+                         contentScriptQuery: str = "") -> str:
+    """Download a Workshop item directly, bypassing Steam client auth.
+
+    For non-owned games where Steam refuses to download Workshop content,
+    this fetches the file_url from the public API and downloads it directly.
+    """
+    return _ws_download(int(appid), workshopId, contentScriptQuery)
+
+
+def DeleteWorkshopItem(appid: int, workshopId: str = "",
+                       contentScriptQuery: str = "") -> str:
+    """Remove a downloaded Workshop item's folder/file."""
+    return _ws_delete(int(appid), workshopId, contentScriptQuery)
+
+
+# ── Achievement Watchlist — READ-ONLY (v9.0.4) ────────────────────────
+
+def GetAchievementProgress(appid: int, accountId32: int,
+                           contentScriptQuery: str = "") -> str:
+    """Per-game achievement progress. Reads only, never writes to stats files.
+
+    Cross-references Steam Web API schema with local UserGameStats_*.bin
+    to compute unlocked/total counts and recent unlock timestamps.
+    """
+    return _aw_progress(int(appid), int(accountId32), contentScriptQuery)
+
+
+def ListAchievementWatchlist(accountId32: int,
+                             contentScriptQuery: str = "") -> str:
+    """All .lua-activated games with per-game achievement progress.
+
+    For the dashboard. Pure read; never modifies game state.
+    """
+    return _aw_list(int(accountId32), contentScriptQuery)
+
+
+def GetRecentAchievementUnlocks(accountId32: int, limit: int = 20,
+                                contentScriptQuery: str = "") -> str:
+    """Recent achievement unlocks across all your games (timeline view)."""
+    return _aw_recent(int(accountId32), int(limit), contentScriptQuery)
+
+
 def GetCustomApis(contentScriptQuery: str = "") -> str:
     """Return user-defined custom API endpoints."""
     return get_custom_apis()
@@ -1015,6 +1317,24 @@ def GetSentinelStatus(contentScriptQuery: str = "") -> str:
     """Get Sentinel daemon status and configuration."""
     return _sentinel_status()
 
+def GetLinuxPlatformStatus(contentScriptQuery: str = "") -> str:
+    """Report Linux platform state: Steam root, SLSsteam/ACCELA presence,
+    LD_AUDIT injection status. Used by the frontend to surface whether the
+    Linux activation tool is installed and hooked in."""
+    import json as _json
+    if sys.platform.startswith("win"):
+        return _json.dumps({"success": True, "platform": "windows",
+                            "linux": False})
+    try:
+        import linux_platform as _lp
+        summary = _lp.get_platform_summary()
+        return _json.dumps({"success": True, "platform": "linux",
+                            "linux": True, **summary})
+    except Exception as exc:
+        return _json.dumps({"success": False, "error": str(exc)})
+
+
+
 
 def SetSentinelConfig(config_json: str = "{}", contentScriptQuery: str = "") -> str:
     """Update Sentinel configuration (enable/disable, poll interval, etc.)."""
@@ -1087,7 +1407,7 @@ class Plugin:
 
     def _load(self):
         logger.log(
-            f"bootstrapping LuaTools Ultimate v8.3-fixed, millennium {_millennium_version()}"
+            f"bootstrapping LuaTools Ultimate v{_plugin_version()}, millennium {_millennium_version()}"
         )
 
         # ── Fast, local-only setup (must complete before ready()) ──────────
@@ -1104,8 +1424,21 @@ class Plugin:
         except Exception as exc:
             logger.warn(f"LuaTools: settings initialization failed: {exc}")
 
-        _copy_webkit_files()
-        _inject_webkit_files()
+        # In bridge/standalone mode the Lua bootstrapper (main.lua) already
+        # copied assets and registered the browser JS. Repeating it here is
+        # redundant and, with the fallback Millennium shim, can resolve to a
+        # bogus relative path — so only do it when running inside Millennium.
+        _standalone = False
+        try:
+            import platform_bridge as _pb
+            _standalone = bool(getattr(_pb, "IS_STANDALONE", False))
+        except Exception:
+            _standalone = False
+        if not _standalone:
+            _copy_webkit_files()
+            _inject_webkit_files()
+        else:
+            logger.log("LuaTools: standalone bridge mode — Lua handles webkit assets")
 
         # ── Defer all network I/O so ready() is reached immediately ────────
         try:

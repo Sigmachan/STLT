@@ -336,8 +336,18 @@ def restart_steam_internal() -> bool:
         logger.error(f"LuaTools: restart script not found: {script_path}")
         return False
     try:
-        CREATE_NO_WINDOW = 0x08000000
-        subprocess.Popen(["cmd", "/C", script_path], creationflags=CREATE_NO_WINDOW)
+        if sys.platform.startswith("win"):
+            CREATE_NO_WINDOW = 0x08000000
+            subprocess.Popen(["cmd", "/C", script_path], creationflags=CREATE_NO_WINDOW)
+        else:
+            # Linux: run via bash, detached. The .ps1 path isn't applicable;
+            # the auto-update mechanism is Windows-only for now and will
+            # return False if a non-bash script was generated.
+            if not (script_path.endswith(".sh") or os.access(script_path, os.X_OK)):
+                logger.warn("LuaTools: auto-update on Linux requires a .sh restart "
+                            "script; skipping launch")
+                return False
+            subprocess.Popen(["bash", script_path], start_new_session=True)
         logger.log("LuaTools: Restart script launched (hidden)")
         return True
     except Exception as exc:

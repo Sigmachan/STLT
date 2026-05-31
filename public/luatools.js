@@ -756,6 +756,26 @@
             gradientLight: 'linear-gradient(135deg, #a4d7f5 0%, #7dd4ff 100%)',
             shadow: 'rgba(102,192,244,0.4)',
             shadowHover: 'rgba(102,192,244,0.6)',
+        },
+        ingria: {
+            name: 'Ingria',
+            bgPrimary: '#0a1929',
+            bgSecondary: '#102a43',
+            bgTertiary: 'rgba(10, 25, 41, 0.95)',
+            bgHover: 'rgba(16, 42, 67, 0.95)',
+            bgContainer: 'rgba(10,25,41,0.8)',
+            bgContainerGradient: 'rgba(10, 25, 41, 0.9), #0a1929',
+            accent: '#00a7e6',
+            accentLight: '#ffffff',
+            accentDark: '#0086c3',
+            border: 'rgba(0, 167, 230, 0.35)',
+            borderHover: 'rgba(255, 255, 255, 0.8)',
+            text: '#ffffff',
+            textSecondary: '#d8edf8',
+            gradient: 'linear-gradient(135deg, #5cc4ee 0%, #00a7e6 100%)',
+            gradientLight: 'linear-gradient(135deg, #ffffff 0%, #5cc4ee 100%)',
+            shadow: 'rgba(0, 167, 230, 0.4)',
+            shadowHover: 'rgba(255, 255, 255, 0.6)',
         }
     };
 
@@ -860,9 +880,9 @@
         try {
             const settings = window.__LuaToolsSettings || {};
             const themeKey = (settings.values || {}).general || {};
-            return themeKey.theme || 'original';
+            return themeKey.theme || 'ingria';
         } catch (e) {
-            return 'original';
+            return 'ingria';
         }
     }
 
@@ -1232,6 +1252,11 @@
             const repairAllBtn = createMenuButton('lt-st-repair-all', 'menu.repairAll', '🔧 Repair Depot Cache', 'fa-screwdriver-wrench');
             const acctTransferBtn = createMenuButton('lt-st-acct-transfer', 'menu.accountTransfer', '🔁 Account Data Transfer', 'fa-arrow-right-arrow-left');
             const keyVaultBtn = createMenuButton('lt-st-key-vault', 'menu.keyVault', '🔑 API Key Vault', 'fa-key');
+            const acctSwitchBtn = createMenuButton('lt-st-acct-switch', 'menu.accountSwitch', '⚡ Quick Account Switch', 'fa-arrows-rotate');
+            const tokeerBtn = createMenuButton('lt-st-tokeer', 'menu.tokeer', '🛡️ Tokeer (Denuvo) Setup', 'fa-shield-halved');
+            const syncBtn = createMenuButton('lt-st-sync', 'menu.sync', '🔄 Multi-Machine Sync', 'fa-cloud-arrow-up');
+            const migratorBtn = createMenuButton('lt-st-migrator', 'menu.crackMigrator', '🧹 Crack Auto-Migrator', 'fa-broom');
+            const achieveBtn = createMenuButton('lt-st-achieve', 'menu.achieveWatch', '🏆 Achievement Watchlist', 'fa-trophy');
             const gameToolsBtn = createMenuButton('lt-st-game-tools', 'menu.gameTools', '🎮 Game Tools (per-app)', 'fa-gamepad');
             const cacheInfoBtn = createMenuButton('lt-st-cache-info', 'menu.cacheManager', '🧹 Cache Manager', 'fa-broom');
             const folderStatsBtn = createMenuButton('lt-st-folder-stats', 'menu.folderStats', '📁 Folder Stats', 'fa-chart-pie');
@@ -1305,6 +1330,46 @@
                     var existingOvs = document.querySelectorAll('.luatools-overlay, .luatools-settings-overlay');
                     existingOvs.forEach(function(o) { o.remove(); });
                     showKeyVaultPanel();
+                });
+            }
+            if (acctSwitchBtn) {
+                acctSwitchBtn.addEventListener('click', function (e) {
+                    e.preventDefault();
+                    var existingOvs = document.querySelectorAll('.luatools-overlay, .luatools-settings-overlay');
+                    existingOvs.forEach(function(o) { o.remove(); });
+                    showAccountSwitchPanel();
+                });
+            }
+            if (tokeerBtn) {
+                tokeerBtn.addEventListener('click', function (e) {
+                    e.preventDefault();
+                    var existingOvs = document.querySelectorAll('.luatools-overlay, .luatools-settings-overlay');
+                    existingOvs.forEach(function(o) { o.remove(); });
+                    showTokeerPanel();
+                });
+            }
+            if (syncBtn) {
+                syncBtn.addEventListener('click', function (e) {
+                    e.preventDefault();
+                    var existingOvs = document.querySelectorAll('.luatools-overlay, .luatools-settings-overlay');
+                    existingOvs.forEach(function(o) { o.remove(); });
+                    showSyncPanel();
+                });
+            }
+            if (migratorBtn) {
+                migratorBtn.addEventListener('click', function (e) {
+                    e.preventDefault();
+                    var existingOvs = document.querySelectorAll('.luatools-overlay, .luatools-settings-overlay');
+                    existingOvs.forEach(function(o) { o.remove(); });
+                    showCrackMigratorPanel();
+                });
+            }
+            if (achieveBtn) {
+                achieveBtn.addEventListener('click', function (e) {
+                    e.preventDefault();
+                    var existingOvs = document.querySelectorAll('.luatools-overlay, .luatools-settings-overlay');
+                    existingOvs.forEach(function(o) { o.remove(); });
+                    showAchievementWatchPanel();
                 });
             }
 
@@ -1959,6 +2024,1168 @@
     }
 
 
+    // ── Quick Account Switch (DPAPI-based) ────────────────────────────
+    function showAccountSwitchPanel() {
+        _stOverlayShell('⚡ Quick Account Switch', function (body, ov, colors) {
+            var intro = document.createElement('div');
+            intro.style.cssText = 'font-size:12px;color:#aaa;line-height:1.6;margin-bottom:10px;padding:8px;background:rgba(102,192,244,0.05);border:1px solid rgba(102,192,244,0.2);border-radius:5px;';
+            intro.innerHTML = '<i class="fa-solid fa-info-circle" style="color:#66c0f4;margin-right:5px;"></i>' +
+                'Restart Steam logged in as another remembered account in ~3 seconds — no UI switcher needed. ' +
+                'Only accounts saved with <i>Remember me</i> are switchable.';
+            body.appendChild(intro);
+
+            var listArea = document.createElement('div');
+            listArea.style.cssText = 'margin-bottom:10px;max-height:340px;overflow-y:auto;';
+            listArea.innerHTML = '<div style="color:#888;font-size:12px;padding:10px;"><i class="fa-solid fa-spinner fa-spin"></i> Decrypting saved tokens…</div>';
+            body.appendChild(listArea);
+
+            var out = document.createElement('div');
+            out.style.cssText = 'font-size:12px;color:#888;padding:8px;background:rgba(0,0,0,0.2);border-radius:4px;display:none;';
+            body.appendChild(out);
+
+            function showMsg(text, color) {
+                out.style.display = 'block';
+                out.style.color = color || '#888';
+                out.innerHTML = text;
+            }
+
+            function render(tokens) {
+                if (!tokens || !tokens.length) {
+                    listArea.innerHTML = '<div style="color:#ff9800;font-size:12px;padding:10px;">No accounts found in loginusers.vdf.</div>';
+                    return;
+                }
+                var html = '';
+                tokens.forEach(function (t) {
+                    var active = t.mostRecent;
+                    var hasJwt = t.hasJwt;
+                    var bg = active ? 'rgba(76,175,80,0.08)' : (hasJwt ? 'rgba(255,255,255,0.03)' : 'rgba(244,67,54,0.05)');
+                    var border = active ? 'rgba(76,175,80,0.3)' : (hasJwt ? 'rgba(255,255,255,0.06)' : 'rgba(244,67,54,0.2)');
+                    html += '<div style="margin-bottom:6px;padding:10px;background:' + bg + ';border:1px solid ' + border + ';border-radius:5px;display:flex;justify-content:space-between;align-items:center;">';
+                    html += '<div style="flex:1;min-width:0;">';
+                    html += '<div style="font-size:13px;font-weight:600;color:#ccc;">' + (t.personaName || t.accountName);
+                    if (active) html += ' <span style="background:#4caf50;border-radius:3px;padding:1px 6px;font-size:9px;color:#fff;margin-left:4px;">ACTIVE</span>';
+                    html += '</div>';
+                    html += '<div style="font-size:10px;color:#888;margin-top:2px;font-family:monospace;">' + t.accountName + ' · ' + t.steamId64 + '</div>';
+                    if (!hasJwt) {
+                        html += '<div style="font-size:10px;color:#ff7070;margin-top:2px;"><i class="fa-solid fa-lock"></i> No saved token — log in via Steam UI with "Remember me" first.</div>';
+                    } else if (t.tokenPreview) {
+                        html += '<div style="font-size:9px;color:#666;margin-top:2px;font-family:monospace;">token: ' + t.tokenPreview + ' (' + t.tokenLength + ' chars)</div>';
+                    }
+                    html += '</div>';
+                    if (hasJwt && !active) {
+                        html += '<button class="lt-acct-switch" data-name="' + t.accountName + '" style="margin-left:8px;padding:6px 12px;background:rgba(102,192,244,0.2);border:1px solid rgba(102,192,244,0.5);border-radius:4px;color:#66c0f4;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;">⚡ Switch</button>';
+                    } else if (active) {
+                        html += '<span style="margin-left:8px;font-size:11px;color:#4caf50;"><i class="fa-solid fa-check"></i> current</span>';
+                    }
+                    html += '</div>';
+                });
+                listArea.innerHTML = html;
+
+                listArea.querySelectorAll('.lt-acct-switch').forEach(function (btn) {
+                    btn.onclick = function () {
+                        var name = btn.getAttribute('data-name');
+                        if (!window.confirm('Steam will close and re-launch as "' + name + '". Continue?')) return;
+                        btn.disabled = true;
+                        btn.textContent = 'Switching…';
+                        showMsg('<i class="fa-solid fa-spinner fa-spin"></i> Switching to ' + name + '…', '#66c0f4');
+                        Millennium.callServerMethod('luatools', 'SwitchToAccount', {
+                            accountName: name, contentScriptQuery: ''
+                        }).then(function (res) {
+                            var p = typeof res === 'string' ? JSON.parse(res) : res;
+                            if (p && p.success) {
+                                showMsg('✅ Switched to <b>' + p.accountName + '</b> — Steam is relaunching.', '#4caf50');
+                            } else {
+                                showMsg('❌ ' + (p && p.error ? p.error : 'Failed'), '#f44336');
+                                btn.disabled = false;
+                                btn.textContent = '⚡ Switch';
+                            }
+                        }).catch(function (err) {
+                            showMsg('❌ ' + err, '#f44336');
+                            btn.disabled = false;
+                            btn.textContent = '⚡ Switch';
+                        });
+                    };
+                });
+            }
+
+            function load() {
+                Millennium.callServerMethod('luatools', 'ExtractLoginTokens', { contentScriptQuery: '' })
+                    .then(function (res) {
+                        var p = typeof res === 'string' ? JSON.parse(res) : res;
+                        if (!p || !p.success) {
+                            listArea.innerHTML = '<div style="color:#f44336;font-size:12px;padding:10px;">' + (p && p.error ? p.error : 'Failed') + '</div>';
+                            return;
+                        }
+                        render(p.tokens || []);
+                    });
+            }
+
+            load();
+        });
+    }
+
+
+
+
+    // ── Tokeer (Denuvo) auto-launcher panel ───────────────────────────
+    function showTokeerPanel() {
+        _stOverlayShell('🛡️ Tokeer (Denuvo) Setup', function (body, ov, colors) {
+            var intro = document.createElement('div');
+            intro.style.cssText = 'font-size:12px;color:#aaa;line-height:1.6;margin-bottom:10px;padding:8px;background:rgba(255,200,0,0.06);border:1px solid rgba(255,200,0,0.2);border-radius:5px;';
+            intro.innerHTML = '<i class="fa-solid fa-info-circle" style="color:#ffc800;margin-right:5px;"></i>' +
+                'For Denuvo-protected games that ship with <code style="background:rgba(0,0,0,0.3);padding:1px 4px;border-radius:3px;">tokeer_launcher.exe</code> — ' +
+                'this writes the right Steam <i>Launch Options</i> for the chosen account. ' +
+                '<b style="color:#ff9800;">Steam must be closed</b> during configuration.';
+            body.appendChild(intro);
+
+            // Account selector
+            var accountRow = document.createElement('div');
+            accountRow.style.cssText = 'display:flex;align-items:center;gap:8px;margin-bottom:10px;padding:8px;background:rgba(255,255,255,0.03);border-radius:5px;';
+            accountRow.innerHTML = '<span style="font-size:12px;color:#aaa;">Target account:</span>' +
+                '<select id="lt-tk-account" style="flex:1;background:#1a1a1a;border:1px solid #333;border-radius:3px;color:#ccc;padding:5px 8px;font-size:12px;"><option value="0">— loading —</option></select>';
+            body.appendChild(accountRow);
+
+            // Filter row
+            var filterRow = document.createElement('div');
+            filterRow.style.cssText = 'display:flex;gap:6px;margin-bottom:10px;';
+            filterRow.innerHTML =
+                '<input id="lt-tk-search" type="text" placeholder="filter by name…" style="flex:1;background:#1a1a1a;border:1px solid #333;border-radius:3px;color:#ccc;padding:5px 8px;font-size:12px;">' +
+                '<label style="display:flex;align-items:center;gap:5px;font-size:11px;color:#aaa;padding:0 8px;cursor:pointer;"><input type="checkbox" id="lt-tk-installed-only" style="accent-color:#66c0f4;"> installed only</label>';
+            body.appendChild(filterRow);
+
+            // List
+            var listArea = document.createElement('div');
+            listArea.style.cssText = 'max-height:340px;overflow-y:auto;margin-bottom:10px;';
+            listArea.innerHTML = '<div style="color:#888;font-size:12px;padding:10px;"><i class="fa-solid fa-spinner fa-spin"></i> Scanning…</div>';
+            body.appendChild(listArea);
+
+            var out = document.createElement('div');
+            out.style.cssText = 'font-size:12px;color:#888;padding:8px;background:rgba(0,0,0,0.2);border-radius:4px;display:none;';
+            body.appendChild(out);
+
+            function showMsg(text, color) {
+                out.style.display = 'block';
+                out.style.color = color || '#888';
+                out.innerHTML = text;
+            }
+
+            var allGames = [];
+
+            function getSelectedAccountId() {
+                var sel = document.getElementById('lt-tk-account');
+                return parseInt(sel.value) || 0;
+            }
+
+            function renderGames() {
+                var filter = (document.getElementById('lt-tk-search').value || '').toLowerCase().trim();
+                var installedOnly = document.getElementById('lt-tk-installed-only').checked;
+                var games = allGames.filter(function (g) {
+                    if (installedOnly && !g.installed) return false;
+                    if (filter && g.name.toLowerCase().indexOf(filter) < 0 && String(g.appid).indexOf(filter) < 0) return false;
+                    return true;
+                });
+
+                if (!games.length) {
+                    listArea.innerHTML = '<div style="color:#888;font-size:12px;padding:14px;text-align:center;">No games match the filter.</div>';
+                    return;
+                }
+
+                var html = '';
+                games.forEach(function (g) {
+                    var statusIcon, statusColor;
+                    if (!g.installed) { statusIcon = '⊘'; statusColor = '#666'; }
+                    else if (!g.launcherFound) { statusIcon = '⚠️'; statusColor = '#ff9800'; }
+                    else { statusIcon = '✅'; statusColor = '#4caf50'; }
+
+                    var bg = g.installed ? 'rgba(255,255,255,0.03)' : 'rgba(255,255,255,0.01)';
+                    var op = g.installed ? '1' : '0.5';
+                    html += '<div style="margin-bottom:5px;padding:8px;background:' + bg + ';border:1px solid rgba(255,255,255,0.06);border-radius:5px;display:flex;justify-content:space-between;align-items:center;opacity:' + op + ';">';
+                    html += '<div style="flex:1;min-width:0;">';
+                    html += '<div style="font-size:12px;color:#ccc;"><span style="color:' + statusColor + ';margin-right:6px;">' + statusIcon + '</span>' + g.name + ' <span style="color:#666;font-family:monospace;font-size:10px;">(' + g.appid + ')</span></div>';
+                    if (g.installed) {
+                        html += '<div style="font-size:10px;color:#666;margin-top:2px;">' + g.expectedExe + (g.launcherFound ? '' : ' — <span style="color:#ff9800;">launcher not found in install dir</span>') + '</div>';
+                    } else {
+                        html += '<div style="font-size:10px;color:#666;margin-top:2px;">not installed</div>';
+                    }
+                    html += '</div>';
+                    if (g.launcherFound) {
+                        html += '<button class="lt-tk-apply" data-appid="' + g.appid + '" style="margin-left:8px;padding:5px 10px;background:rgba(102,192,244,0.2);border:1px solid rgba(102,192,244,0.4);border-radius:4px;color:#66c0f4;font-size:11px;cursor:pointer;white-space:nowrap;">🔧 Configure</button>';
+                    }
+                    html += '</div>';
+                });
+                listArea.innerHTML = html;
+
+                listArea.querySelectorAll('.lt-tk-apply').forEach(function (btn) {
+                    btn.onclick = function () {
+                        var appid = parseInt(btn.getAttribute('data-appid'));
+                        var accId = getSelectedAccountId();
+                        if (!accId) { showMsg('Select an account first.', '#ff9800'); return; }
+                        btn.disabled = true;
+                        btn.textContent = 'Configuring…';
+                        Millennium.callServerMethod('luatools', 'ConfigureTokeerLaunch', {
+                            appid: appid, accountId32: accId, contentScriptQuery: ''
+                        }).then(function (res) {
+                            var p = typeof res === 'string' ? JSON.parse(res) : res;
+                            if (p && p.success) {
+                                showMsg('✅ <b>' + p.name + '</b>: ' + p.action + ' launch options.<br>' +
+                                    '<span style="font-size:10px;color:#888;font-family:monospace;">' + p.launchOptions + '</span>', '#4caf50');
+                                btn.textContent = '✅ Done';
+                                btn.style.background = 'rgba(76,175,80,0.2)';
+                                btn.style.borderColor = 'rgba(76,175,80,0.4)';
+                                btn.style.color = '#4caf50';
+                            } else {
+                                showMsg('❌ ' + (p && p.error ? p.error : 'Failed'), '#f44336');
+                                btn.disabled = false;
+                                btn.textContent = '🔧 Configure';
+                            }
+                        }).catch(function (err) {
+                            showMsg('❌ ' + err, '#f44336');
+                            btn.disabled = false;
+                            btn.textContent = '🔧 Configure';
+                        });
+                    };
+                });
+            }
+
+            function loadAccounts() {
+                return Millennium.callServerMethod('luatools', 'ListUserdataAccounts', { contentScriptQuery: '' })
+                    .then(function (res) {
+                        var p = typeof res === 'string' ? JSON.parse(res) : res;
+                        var sel = document.getElementById('lt-tk-account');
+                        if (p && p.success && p.accounts && p.accounts.length) {
+                            sel.innerHTML = '';
+                            p.accounts.forEach(function (a) {
+                                var opt = document.createElement('option');
+                                opt.value = a.accountId32;
+                                opt.textContent = (a.personaName || a.username || 'Unknown') + ' (' + a.accountId32 + ')' + (a.mostRecent ? ' — most recent' : '');
+                                if (a.mostRecent) opt.selected = true;
+                                sel.appendChild(opt);
+                            });
+                        } else {
+                            sel.innerHTML = '<option value="0">(no accounts found)</option>';
+                        }
+                    });
+            }
+
+            function loadGames() {
+                Millennium.callServerMethod('luatools', 'ListTokeerGames', { contentScriptQuery: '' })
+                    .then(function (res) {
+                        var p = typeof res === 'string' ? JSON.parse(res) : res;
+                        if (p && p.success) {
+                            allGames = p.games || [];
+                            renderGames();
+                        } else {
+                            listArea.innerHTML = '<div style="color:#f44336;font-size:12px;padding:10px;">' + (p && p.error ? p.error : 'Failed') + '</div>';
+                        }
+                    });
+            }
+
+            setTimeout(function () {
+                var sBtn = document.getElementById('lt-tk-search');
+                var iBtn = document.getElementById('lt-tk-installed-only');
+                if (sBtn) sBtn.addEventListener('input', renderGames);
+                if (iBtn) iBtn.addEventListener('change', renderGames);
+            }, 50);
+
+            loadAccounts().then(loadGames);
+        });
+    }
+
+
+    // ── Multi-machine Sync (v9.0) ─────────────────────────────────────
+    function showSyncPanel() {
+        _stOverlayShell('🔄 Multi-Machine Sync', function (body, ov, colors) {
+            var intro = document.createElement('div');
+            intro.style.cssText = 'font-size:12px;color:#aaa;line-height:1.6;margin-bottom:10px;padding:8px;background:rgba(102,192,244,0.05);border:1px solid rgba(102,192,244,0.2);border-radius:5px;';
+            intro.innerHTML = '<i class="fa-solid fa-info-circle" style="color:#66c0f4;margin-right:5px;"></i>' +
+                'Sync your .lua scripts, key vault, sentinel config and source chain between machines via Git or a shared folder. ' +
+                'Steam install paths and per-host caches stay local.';
+            body.appendChild(intro);
+
+            // Backend toggle
+            var backendRow = document.createElement('div');
+            backendRow.style.cssText = 'display:flex;gap:6px;margin-bottom:10px;';
+            backendRow.innerHTML =
+                '<button id="lt-sync-back-git" data-backend="git" style="flex:1;padding:6px;background:rgba(102,192,244,0.2);border:1px solid rgba(102,192,244,0.5);border-radius:4px;color:#66c0f4;font-size:12px;cursor:pointer;"><i class="fa-brands fa-git-alt"></i> Git remote</button>' +
+                '<button id="lt-sync-back-folder" data-backend="folder" style="flex:1;padding:6px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.1);border-radius:4px;color:#aaa;font-size:12px;cursor:pointer;"><i class="fa-solid fa-folder-tree"></i> Shared folder</button>';
+            body.appendChild(backendRow);
+
+            // Config form
+            var formArea = document.createElement('div');
+            formArea.style.cssText = 'margin-bottom:10px;padding:10px;background:rgba(255,255,255,0.03);border-radius:5px;';
+            body.appendChild(formArea);
+
+            // Action buttons
+            var actions = document.createElement('div');
+            actions.style.cssText = 'display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap;';
+            actions.innerHTML =
+                '<button id="lt-sync-save" style="flex:1;padding:7px;background:rgba(76,175,80,0.15);border:1px solid rgba(76,175,80,0.4);border-radius:4px;color:#4caf50;font-size:12px;cursor:pointer;">💾 Save config</button>' +
+                '<button id="lt-sync-test" style="flex:1;padding:7px;background:rgba(102,192,244,0.15);border:1px solid rgba(102,192,244,0.4);border-radius:4px;color:#66c0f4;font-size:12px;cursor:pointer;">🔌 Test connection</button>' +
+                '<button id="lt-sync-pull-dry" style="flex:1;padding:7px;background:rgba(255,200,0,0.15);border:1px solid rgba(255,200,0,0.4);border-radius:4px;color:#ffc800;font-size:12px;cursor:pointer;">👁️ Preview pull</button>' +
+                '<button id="lt-sync-pull" style="flex:1;padding:7px;background:rgba(255,150,0,0.15);border:1px solid rgba(255,150,0,0.4);border-radius:4px;color:#ff9800;font-size:12px;cursor:pointer;">⬇ Pull</button>' +
+                '<button id="lt-sync-push" style="flex:1;padding:7px;background:rgba(102,192,244,0.2);border:1px solid rgba(102,192,244,0.5);border-radius:4px;color:#66c0f4;font-size:12px;font-weight:600;cursor:pointer;">⬆ Push</button>';
+            body.appendChild(actions);
+
+            // Output
+            var out = document.createElement('div');
+            out.style.cssText = 'font-size:12px;line-height:1.7;min-height:80px;padding:10px;background:rgba(0,0,0,0.2);border-radius:6px;border:1px solid ' + colors.borderRgba + ';overflow-y:auto;max-height:260px;';
+            out.innerHTML = '<span style="color:#888;">Loading config…</span>';
+            body.appendChild(out);
+
+            var config = {};
+            var currentBackend = 'git';
+
+            function renderForm() {
+                var g = config.git || {};
+                var fld = config.folder || {};
+                if (currentBackend === 'git') {
+                    formArea.innerHTML =
+                        '<div style="font-size:11px;color:#aaa;margin-bottom:4px;">Remote URL (git@... or https://...)</div>' +
+                        '<input id="lt-sync-url" type="text" value="' + (g.remote_url || '').replace(/"/g, '&quot;') + '" placeholder="https://github.com/you/luatools-sync.git" style="width:100%;background:#1a1a1a;border:1px solid #333;border-radius:3px;color:#ccc;padding:5px 8px;font-size:12px;font-family:monospace;margin-bottom:8px;">' +
+                        '<div style="display:flex;gap:8px;margin-bottom:6px;">' +
+                        '<div style="flex:1;"><div style="font-size:11px;color:#aaa;margin-bottom:4px;">Branch</div><input id="lt-sync-branch" type="text" value="' + (g.branch || 'main') + '" style="width:100%;background:#1a1a1a;border:1px solid #333;border-radius:3px;color:#ccc;padding:5px 8px;font-size:12px;"></div>' +
+                        '</div>' +
+                        '<label style="display:flex;align-items:center;gap:5px;font-size:11px;color:#aaa;cursor:pointer;margin-bottom:3px;"><input id="lt-sync-incl-lua" type="checkbox" ' + (g.include_lua_scripts !== false ? 'checked' : '') + ' style="accent-color:#66c0f4;"> Include .lua scripts (recommended)</label>' +
+                        '<label style="display:flex;align-items:center;gap:5px;font-size:11px;color:#aaa;cursor:pointer;"><input id="lt-sync-incl-hist" type="checkbox" ' + (g.include_history_db ? 'checked' : '') + ' style="accent-color:#66c0f4;"> Include history.db (large file)</label>';
+                } else {
+                    formArea.innerHTML =
+                        '<div style="font-size:11px;color:#aaa;margin-bottom:4px;">Folder path (local, mapped drive, or Syncthing-watched)</div>' +
+                        '<input id="lt-sync-path" type="text" value="' + (fld.path || '').replace(/"/g, '&quot;') + '" placeholder="D:\\\\Sync\\\\LuaTools" style="width:100%;background:#1a1a1a;border:1px solid #333;border-radius:3px;color:#ccc;padding:5px 8px;font-size:12px;font-family:monospace;margin-bottom:8px;">' +
+                        '<label style="display:flex;align-items:center;gap:5px;font-size:11px;color:#aaa;cursor:pointer;margin-bottom:3px;"><input id="lt-sync-incl-lua" type="checkbox" ' + (fld.include_lua_scripts !== false ? 'checked' : '') + ' style="accent-color:#66c0f4;"> Include .lua scripts</label>' +
+                        '<label style="display:flex;align-items:center;gap:5px;font-size:11px;color:#aaa;cursor:pointer;"><input id="lt-sync-incl-hist" type="checkbox" ' + (fld.include_history_db ? 'checked' : '') + ' style="accent-color:#66c0f4;"> Include history.db</label>';
+                }
+            }
+
+            function setBackendVisual(b) {
+                currentBackend = b;
+                ['git', 'folder'].forEach(function (kind) {
+                    var btn = document.getElementById('lt-sync-back-' + kind);
+                    if (kind === b) {
+                        btn.style.background = 'rgba(102,192,244,0.2)';
+                        btn.style.borderColor = 'rgba(102,192,244,0.5)';
+                        btn.style.color = '#66c0f4';
+                    } else {
+                        btn.style.background = 'rgba(255,255,255,0.03)';
+                        btn.style.borderColor = 'rgba(255,255,255,0.1)';
+                        btn.style.color = '#aaa';
+                    }
+                });
+                renderForm();
+            }
+
+            function gatherFormConfig() {
+                var updates = { backend: currentBackend };
+                if (currentBackend === 'git') {
+                    updates.git = {
+                        remote_url: (document.getElementById('lt-sync-url') || {}).value || '',
+                        branch: (document.getElementById('lt-sync-branch') || {}).value || 'main',
+                        include_lua_scripts: !!(document.getElementById('lt-sync-incl-lua') || {}).checked,
+                        include_history_db: !!(document.getElementById('lt-sync-incl-hist') || {}).checked,
+                    };
+                } else {
+                    updates.folder = {
+                        path: (document.getElementById('lt-sync-path') || {}).value || '',
+                        include_lua_scripts: !!(document.getElementById('lt-sync-incl-lua') || {}).checked,
+                        include_history_db: !!(document.getElementById('lt-sync-incl-hist') || {}).checked,
+                    };
+                }
+                return updates;
+            }
+
+            function showMsg(html, color) {
+                out.style.color = color || '#ccc';
+                out.innerHTML = html;
+            }
+
+            function renderStatus(status) {
+                if (!status || !status.success) return '';
+                var lp = status.lastPush ? new Date(status.lastPush * 1000).toLocaleString() : 'never';
+                var lpl = status.lastPull ? new Date(status.lastPull * 1000).toLocaleString() : 'never';
+                var local = status.localFiles || {};
+                return '<div style="font-size:11px;color:#888;border-top:1px solid rgba(255,255,255,0.06);padding-top:6px;margin-top:6px;">' +
+                    '<b>Backend:</b> ' + status.backend + (status.configured ? ' (configured)' : ' <span style="color:#ff9800;">(not configured)</span>') + '<br>' +
+                    '<b>Last push:</b> ' + lp + '<br>' +
+                    '<b>Last pull:</b> ' + lpl + '<br>' +
+                    '<b>Local state:</b> ' + (local.dataFiles || 0) + ' data file(s), ' + (local.luaScripts || 0) + ' .lua script(s)' +
+                    '</div>';
+            }
+
+            function loadConfig() {
+                Millennium.callServerMethod('luatools', 'GetSyncConfig', { contentScriptQuery: '' })
+                    .then(function (res) {
+                        var p = typeof res === 'string' ? JSON.parse(res) : res;
+                        if (p && p.success) {
+                            config = p.config || {};
+                            setBackendVisual(config.backend || 'git');
+                            return Millennium.callServerMethod('luatools', 'SyncStatus', { contentScriptQuery: '' });
+                        }
+                        showMsg('<span style="color:#f44336;">Config load failed.</span>', '#f44336');
+                    })
+                    .then(function (res) {
+                        if (!res) return;
+                        var st = typeof res === 'string' ? JSON.parse(res) : res;
+                        showMsg('<span style="color:#888;">Ready.</span>' + renderStatus(st));
+                    });
+            }
+
+            // Wire backend toggle
+            setTimeout(function () {
+                ['git', 'folder'].forEach(function (b) {
+                    var btn = document.getElementById('lt-sync-back-' + b);
+                    if (btn) btn.onclick = function () { setBackendVisual(b); };
+                });
+
+                document.getElementById('lt-sync-save').onclick = function () {
+                    var updates = gatherFormConfig();
+                    showMsg('<i class="fa-solid fa-spinner fa-spin"></i> Saving…');
+                    Millennium.callServerMethod('luatools', 'SetSyncConfig', { updates: updates, contentScriptQuery: '' })
+                        .then(function (res) {
+                            var p = typeof res === 'string' ? JSON.parse(res) : res;
+                            if (p && p.success) {
+                                config = p.config;
+                                showMsg('<span style="color:#4caf50;">✅ Config saved.</span>', '#4caf50');
+                            } else {
+                                showMsg('<span style="color:#f44336;">❌ ' + (p && p.error || 'Failed') + '</span>', '#f44336');
+                            }
+                        });
+                };
+
+                document.getElementById('lt-sync-test').onclick = function () {
+                    showMsg('<i class="fa-solid fa-spinner fa-spin"></i> Testing connection…');
+                    Millennium.callServerMethod('luatools', 'SyncTestConnection', { contentScriptQuery: '' })
+                        .then(function (res) {
+                            var p = typeof res === 'string' ? JSON.parse(res) : res;
+                            if (p && p.success) showMsg('<span style="color:#4caf50;">✅ ' + (p.message || 'OK') + '</span>', '#4caf50');
+                            else showMsg('<span style="color:#f44336;">❌ ' + (p && p.error || 'Failed') + '</span>', '#f44336');
+                        });
+                };
+
+                document.getElementById('lt-sync-pull-dry').onclick = function () {
+                    showMsg('<i class="fa-solid fa-spinner fa-spin"></i> Previewing pull (dry-run)…');
+                    Millennium.callServerMethod('luatools', 'SyncPull', { dryRun: true, contentScriptQuery: '' })
+                        .then(function (res) {
+                            var p = typeof res === 'string' ? JSON.parse(res) : res;
+                            renderPullResult(p, true);
+                        });
+                };
+
+                document.getElementById('lt-sync-pull').onclick = function () {
+                    if (!window.confirm('Pull will overwrite local files (with .presync-* backups). Continue?')) return;
+                    showMsg('<i class="fa-solid fa-spinner fa-spin"></i> Pulling…');
+                    Millennium.callServerMethod('luatools', 'SyncPull', { dryRun: false, contentScriptQuery: '' })
+                        .then(function (res) {
+                            var p = typeof res === 'string' ? JSON.parse(res) : res;
+                            renderPullResult(p, false);
+                        });
+                };
+
+                document.getElementById('lt-sync-push').onclick = function () {
+                    showMsg('<i class="fa-solid fa-spinner fa-spin"></i> Pushing…');
+                    Millennium.callServerMethod('luatools', 'SyncPush', { contentScriptQuery: '' })
+                        .then(function (res) {
+                            var p = typeof res === 'string' ? JSON.parse(res) : res;
+                            if (!p || !p.success) {
+                                showMsg('<span style="color:#f44336;">❌ ' + (p && p.error || 'Failed') + '</span>', '#f44336');
+                                return;
+                            }
+                            var h = '<div style="color:#4caf50;font-weight:600;">✅ Push complete</div>' +
+                                '<div style="font-size:11px;">Files staged: ' + (p.filesStaged || 0) + ', new/changed: ' + (p.filesNew || 0) + '</div>';
+                            if ((p.stageErrors || []).length) {
+                                h += '<div style="color:#ff9800;font-size:11px;margin-top:4px;">Warnings: ' + p.stageErrors.length + '</div>';
+                            }
+                            showMsg(h, '#4caf50');
+                        });
+                };
+            }, 50);
+
+            function renderPullResult(p, dryRun) {
+                if (!p || !p.success) {
+                    showMsg('<span style="color:#f44336;">❌ ' + (p && p.error || 'Failed') + '</span>', '#f44336');
+                    return;
+                }
+                var applied = p.applied || [];
+                var skipped = p.skipped || [];
+                var conflicts = p.conflicts || [];
+                var errors = p.errors || [];
+                var h = '<div style="color:' + (dryRun ? '#ffc800' : '#4caf50') + ';font-weight:600;">' +
+                    (dryRun ? '👁️ Dry-run preview' : '✅ Pull complete') +
+                    '</div>';
+                h += '<div style="font-size:11px;margin-top:4px;">';
+                h += 'Applied: <b>' + applied.length + '</b> · ';
+                h += 'Identical: <b>' + skipped.length + '</b> · ';
+                h += 'Conflicts: <b style="color:' + (conflicts.length ? '#ff9800' : '#888') + ';">' + conflicts.length + '</b>';
+                if (errors.length) h += ' · <span style="color:#f44336;">Errors: ' + errors.length + '</span>';
+                h += '</div>';
+
+                if (conflicts.length) {
+                    h += '<div style="font-size:11px;color:#ff9800;margin-top:6px;border-top:1px solid rgba(255,150,0,0.2);padding-top:6px;">⚠️ Conflicts (local newer than remote — not overwritten):</div>';
+                    h += '<div style="font-size:10px;color:#aaa;font-family:monospace;max-height:120px;overflow-y:auto;">';
+                    conflicts.forEach(function (c) {
+                        h += '• ' + c.path + ' (local: ' + (c.local_hash || '?').slice(0, 8) + ', remote: ' + (c.remote_hash || '?').slice(0, 8) + ')<br>';
+                    });
+                    h += '</div>';
+                }
+
+                showMsg(h);
+            }
+
+            loadConfig();
+        });
+    }
+
+
+    // ── Crack Auto-Migration (v9.0) ────────────────────────────────────
+    function showCrackMigratorPanel() {
+        _stOverlayShell('🧹 Crack Auto-Migrator', function (body, ov, colors) {
+            var intro = document.createElement('div');
+            intro.style.cssText = 'font-size:12px;color:#aaa;line-height:1.6;margin-bottom:10px;padding:8px;background:rgba(255,200,0,0.06);border:1px solid rgba(255,200,0,0.2);border-radius:5px;';
+            intro.innerHTML = '<i class="fa-solid fa-triangle-exclamation" style="color:#ffc800;margin-right:5px;"></i>' +
+                'Scans installed games for legacy cracks (Goldberg, CODEX, CreamAPI, ALI213, etc.) and moves them to backup folders, ' +
+                'so you can switch the game over to LuaTools activation. <b>Always dry-run first.</b> Original files are kept in ' +
+                '<code style="background:rgba(0,0,0,0.3);padding:1px 4px;border-radius:3px;">_luatools_migration_&lt;timestamp&gt;/</code> for rollback.';
+            body.appendChild(intro);
+
+            // Filter row
+            var filterRow = document.createElement('div');
+            filterRow.style.cssText = 'display:flex;gap:6px;margin-bottom:10px;';
+            filterRow.innerHTML =
+                '<input id="lt-cm-search" type="text" placeholder="filter by name…" style="flex:1;background:#1a1a1a;border:1px solid #333;border-radius:3px;color:#ccc;padding:5px 8px;font-size:12px;">' +
+                '<label style="display:flex;align-items:center;gap:5px;font-size:11px;color:#aaa;padding:0 8px;cursor:pointer;"><input type="checkbox" id="lt-cm-cracked-only" checked style="accent-color:#66c0f4;"> cracked only</label>' +
+                '<button id="lt-cm-rescan" style="padding:5px 10px;background:rgba(102,192,244,0.15);border:1px solid rgba(102,192,244,0.4);border-radius:4px;color:#66c0f4;font-size:11px;cursor:pointer;">🔄 Rescan</button>';
+            body.appendChild(filterRow);
+
+            // Stats bar
+            var stats = document.createElement('div');
+            stats.style.cssText = 'padding:6px 10px;background:rgba(0,0,0,0.2);border-radius:5px;margin-bottom:10px;font-size:11px;color:#aaa;';
+            stats.textContent = 'Scanning…';
+            body.appendChild(stats);
+
+            // List
+            var listArea = document.createElement('div');
+            listArea.style.cssText = 'max-height:340px;overflow-y:auto;margin-bottom:10px;';
+            body.appendChild(listArea);
+
+            // Output / details
+            var out = document.createElement('div');
+            out.style.cssText = 'font-size:12px;line-height:1.7;min-height:60px;padding:10px;background:rgba(0,0,0,0.2);border-radius:6px;border:1px solid ' + colors.borderRgba + ';overflow-y:auto;max-height:220px;display:none;';
+            body.appendChild(out);
+
+            var allResults = [];
+
+            function showMsg(html, color) {
+                out.style.display = 'block';
+                out.style.color = color || '#ccc';
+                out.innerHTML = html;
+            }
+
+            function familyColor(family) {
+                if (!family) return '#888';
+                if (family.indexOf('Goldberg') >= 0) return '#ffc800';
+                if (family.indexOf('CODEX') >= 0) return '#ff9800';
+                if (family.indexOf('CreamAPI') >= 0) return '#ff5722';
+                if (family.indexOf('ALI213') >= 0) return '#ff5722';
+                if (family.indexOf('UnSteam') >= 0) return '#f44336';
+                if (family.indexOf('Proxy') >= 0) return '#aaa';
+                return '#ff9800';
+            }
+
+            function renderList() {
+                var filter = (document.getElementById('lt-cm-search').value || '').toLowerCase().trim();
+                var crackedOnly = document.getElementById('lt-cm-cracked-only').checked;
+                var games = allResults.filter(function (g) {
+                    if (crackedOnly && g.clean) return false;
+                    if (filter && g.name.toLowerCase().indexOf(filter) < 0 && String(g.appid).indexOf(filter) < 0) return false;
+                    return true;
+                });
+
+                if (!games.length) {
+                    listArea.innerHTML = '<div style="color:#888;font-size:12px;padding:14px;text-align:center;">No games match.</div>';
+                    return;
+                }
+
+                var html = '';
+                games.forEach(function (g) {
+                    var bg, border;
+                    if (g.clean) {
+                        bg = 'rgba(76,175,80,0.05)';
+                        border = 'rgba(76,175,80,0.2)';
+                    } else {
+                        bg = 'rgba(255,150,0,0.05)';
+                        border = 'rgba(255,150,0,0.2)';
+                    }
+                    html += '<div style="margin-bottom:5px;padding:8px;background:' + bg + ';border:1px solid ' + border + ';border-radius:5px;">';
+                    html += '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;">';
+                    html += '<div style="flex:1;min-width:0;">';
+
+                    var icon = g.clean ? '✅' : '⚠️';
+                    html += '<div style="font-size:12px;color:#ccc;">' + icon + ' ' + g.name + ' <span style="color:#666;font-family:monospace;font-size:10px;">(' + g.appid + ')</span>';
+                    if (g.hasLuaTools) {
+                        html += ' <span style="background:rgba(102,192,244,0.2);border-radius:3px;padding:1px 5px;font-size:9px;color:#66c0f4;margin-left:4px;">LuaTools</span>';
+                    }
+                    html += '</div>';
+
+                    if (!g.clean) {
+                        var col = familyColor(g.topFamily);
+                        html += '<div style="font-size:10px;color:' + col + ';margin-top:2px;">';
+                        html += '<b>' + g.topFamily + '</b> (confidence: ' + g.confidence + ', ' + g.fileCount + ' file(s))';
+                        if ((g.families || []).length > 1) {
+                            html += ' · also: ' + g.families.slice(1).map(function (f) { return f.family; }).join(', ');
+                        }
+                        html += '</div>';
+                    }
+                    html += '</div>';
+                    if (!g.clean) {
+                        html += '<button class="lt-cm-action" data-appid="' + g.appid + '" data-action="preview" style="padding:5px 10px;background:rgba(255,200,0,0.15);border:1px solid rgba(255,200,0,0.4);border-radius:4px;color:#ffc800;font-size:11px;cursor:pointer;white-space:nowrap;">👁️ Preview</button>';
+                        html += '<button class="lt-cm-action" data-appid="' + g.appid + '" data-action="migrate" style="margin-left:4px;padding:5px 10px;background:rgba(255,150,0,0.15);border:1px solid rgba(255,150,0,0.4);border-radius:4px;color:#ff9800;font-size:11px;cursor:pointer;white-space:nowrap;">🚚 Migrate</button>';
+                    }
+                    html += '</div></div>';
+                });
+                listArea.innerHTML = html;
+
+                listArea.querySelectorAll('.lt-cm-action').forEach(function (btn) {
+                    btn.onclick = function () {
+                        var appid = parseInt(btn.getAttribute('data-appid'));
+                        var action = btn.getAttribute('data-action');
+                        if (action === 'preview') {
+                            previewMigration(appid);
+                        } else if (action === 'migrate') {
+                            doMigration(appid);
+                        }
+                    };
+                });
+            }
+
+            function previewMigration(appid) {
+                showMsg('<i class="fa-solid fa-spinner fa-spin"></i> Building plan…');
+                Millennium.callServerMethod('luatools', 'MigrateGame', {
+                    appid: appid, dryRun: true, contentScriptQuery: ''
+                }).then(function (res) {
+                    var p = typeof res === 'string' ? JSON.parse(res) : res;
+                    if (!p || !p.success) {
+                        showMsg('<span style="color:#f44336;">' + (p && p.error || 'Failed') + '</span>', '#f44336');
+                        return;
+                    }
+                    if (p.clean) {
+                        showMsg('<span style="color:#4caf50;">✅ ' + p.message + '</span>', '#4caf50');
+                        return;
+                    }
+                    var h = '<div style="color:#ffc800;font-weight:600;margin-bottom:4px;">👁️ Migration plan for ' + p.name + '</div>';
+                    h += '<div style="font-size:11px;margin-bottom:6px;">Top family: <b style="color:' + familyColor(p.topFamily) + ';">' + p.topFamily + '</b> · confidence ' + p.confidence + ' · ' + p.filesToMove + ' file(s) to move</div>';
+                    h += '<div style="font-size:11px;color:#aaa;margin-bottom:4px;">Backup will go to:</div>';
+                    h += '<div style="font-size:10px;color:#888;font-family:monospace;word-break:break-all;margin-bottom:6px;">' + p.backupDir + '</div>';
+                    h += '<div style="font-size:11px;color:#aaa;margin-bottom:4px;">Files that will be moved:</div>';
+                    h += '<div style="font-size:10px;color:#ccc;font-family:monospace;max-height:160px;overflow-y:auto;">';
+                    (p.plan || []).slice(0, 30).forEach(function (item) {
+                        h += '• [' + item.family + '] ' + item.path + '<br>';
+                    });
+                    if ((p.plan || []).length > 30) h += '… and ' + ((p.plan || []).length - 30) + ' more<br>';
+                    h += '</div>';
+                    showMsg(h);
+                });
+            }
+
+            function doMigration(appid) {
+                if (!window.confirm('Move crack files for AppID ' + appid + ' to a backup folder? Original files are kept, not deleted.')) return;
+                showMsg('<i class="fa-solid fa-spinner fa-spin"></i> Migrating…');
+                Millennium.callServerMethod('luatools', 'MigrateGame', {
+                    appid: appid, dryRun: false, contentScriptQuery: ''
+                }).then(function (res) {
+                    var p = typeof res === 'string' ? JSON.parse(res) : res;
+                    if (!p || !p.success) {
+                        showMsg('<span style="color:#f44336;">' + (p && p.error || 'Failed') + '</span>', '#f44336');
+                        return;
+                    }
+                    var h = '<div style="color:#4caf50;font-weight:600;margin-bottom:4px;">✅ Migration complete: ' + p.name + '</div>';
+                    h += '<div style="font-size:11px;">Moved <b>' + p.movedCount + ' item(s)</b></div>';
+                    h += '<div style="font-size:10px;color:#888;font-family:monospace;margin-top:4px;word-break:break-all;">📦 Backup: ' + p.backupDir + '</div>';
+                    if ((p.errors || []).length) {
+                        h += '<div style="color:#ff9800;font-size:11px;margin-top:4px;">⚠️ ' + p.errors.length + ' error(s)</div>';
+                    }
+                    h += '<div style="font-size:11px;color:#aaa;margin-top:6px;border-top:1px solid rgba(255,255,255,0.06);padding-top:6px;">';
+                    h += 'Next step: install LuaTools activation for AppID ' + p.appid + ' via the regular plugin button on the game page.';
+                    h += '</div>';
+                    showMsg(h, '#4caf50');
+                    // Refresh the list
+                    setTimeout(loadScan, 1500);
+                });
+            }
+
+            function loadScan() {
+                stats.textContent = 'Scanning installed games…';
+                listArea.innerHTML = '<div style="color:#888;font-size:12px;padding:14px;text-align:center;"><i class="fa-solid fa-spinner fa-spin"></i> Scanning…</div>';
+                Millennium.callServerMethod('luatools', 'ScanCrackedGames', { contentScriptQuery: '' })
+                    .then(function (res) {
+                        var p = typeof res === 'string' ? JSON.parse(res) : res;
+                        if (!p || !p.success) {
+                            stats.innerHTML = '<span style="color:#f44336;">' + (p && p.error || 'Failed') + '</span>';
+                            listArea.innerHTML = '';
+                            return;
+                        }
+                        allResults = p.results || [];
+                        stats.innerHTML = 'Total: <b>' + p.totalGames + '</b> · Cracked: <b style="color:#ff9800;">' + p.crackedGames + '</b> · Clean: <b style="color:#4caf50;">' + p.cleanGames + '</b>';
+                        renderList();
+                    });
+            }
+
+            setTimeout(function () {
+                document.getElementById('lt-cm-search').addEventListener('input', renderList);
+                document.getElementById('lt-cm-cracked-only').addEventListener('change', renderList);
+                document.getElementById('lt-cm-rescan').onclick = loadScan;
+            }, 50);
+
+            loadScan();
+        });
+    }
+
+
+    function renderProfilesPanel(container, appid, data) {
+        var profiles = data.profiles || [];
+        var html = '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">';
+        html += '<div style="font-weight:600;color:#66c0f4;">Profiles for AppID ' + appid + '</div>';
+        html += '<button id="lt-prof-new" style="padding:4px 10px;background:rgba(76,175,80,0.15);border:1px solid rgba(76,175,80,0.4);border-radius:4px;color:#4caf50;font-size:11px;cursor:pointer;">＋ Snapshot current state</button>';
+        html += '</div>';
+
+        if (!profiles.length) {
+            html += '<div style="color:#888;font-size:12px;padding:10px;background:rgba(0,0,0,0.2);border-radius:5px;text-align:center;">';
+            html += 'No saved profiles yet. Snapshot the current .lua + launch options to create one.';
+            html += '</div>';
+        } else {
+            html += '<div style="display:grid;gap:6px;">';
+            profiles.forEach(function (prof) {
+                var isActive = prof.active;
+                var bg = isActive ? 'rgba(76,175,80,0.08)' : 'rgba(255,255,255,0.03)';
+                var border = isActive ? 'rgba(76,175,80,0.3)' : 'rgba(255,255,255,0.06)';
+                html += '<div style="padding:8px;background:' + bg + ';border:1px solid ' + border + ';border-radius:5px;">';
+                html += '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;">';
+                html += '<div style="flex:1;min-width:0;">';
+                html += '<div style="font-size:13px;font-weight:600;color:#ccc;">📋 ' + prof.name;
+                if (isActive) html += ' <span style="background:#4caf50;border-radius:3px;padding:1px 5px;font-size:9px;color:#fff;margin-left:4px;">ACTIVE</span>';
+                html += '</div>';
+                if (prof.description) {
+                    html += '<div style="font-size:11px;color:#aaa;margin-top:2px;">' + prof.description + '</div>';
+                }
+                html += '<div style="font-size:10px;color:#888;font-family:monospace;margin-top:3px;">';
+                html += 'lua: ' + prof.luaLength + ' bytes';
+                if (prof.hasLaunchOptions) html += ' · launch: ' + prof.launchOptionsPreview;
+                if (prof.createdAt) html += ' · ' + new Date(prof.createdAt * 1000).toLocaleString();
+                html += '</div></div>';
+                html += '<div style="display:flex;gap:4px;flex-shrink:0;">';
+                if (!isActive) {
+                    html += '<button class="lt-prof-act" data-slug="' + prof.slug + '" style="padding:4px 10px;background:rgba(102,192,244,0.2);border:1px solid rgba(102,192,244,0.5);border-radius:4px;color:#66c0f4;font-size:11px;cursor:pointer;font-weight:600;">🔄 Activate</button>';
+                }
+                html += '<button class="lt-prof-del" data-slug="' + prof.slug + '" data-name="' + (prof.name || '').replace(/"/g,'') + '" style="padding:4px 8px;background:rgba(244,67,54,0.15);border:1px solid rgba(244,67,54,0.4);border-radius:4px;color:#f44336;font-size:11px;cursor:pointer;">🗑</button>';
+                html += '</div>';
+                html += '</div></div>';
+            });
+            html += '</div>';
+        }
+
+        container.innerHTML = html;
+
+        // New profile dialog
+        var newBtn = container.querySelector('#lt-prof-new');
+        if (newBtn) newBtn.onclick = function () {
+            var name = window.prompt('Profile name (e.g. "Tokeer + DLC", "Vanilla", "Russian build"):', '');
+            if (!name || !name.trim()) return;
+            container.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Saving…';
+            Millennium.callServerMethod('luatools', 'SaveProfile', {
+                appid: appid, name: name.trim(), description: '',
+                accountId32: 0, contentScriptQuery: ''
+            }).then(function (res) {
+                var p = typeof res === 'string' ? JSON.parse(res) : res;
+                if (!p || !p.success) {
+                    container.innerHTML = '<span style="color:#f44336;">' + (p && p.error || 'Failed') + '</span>';
+                    return;
+                }
+                // Reload
+                Millennium.callServerMethod('luatools', 'ListProfilesFor', { appid: appid, contentScriptQuery: '' })
+                    .then(function (r2) {
+                        var p2 = typeof r2 === 'string' ? JSON.parse(r2) : r2;
+                        renderProfilesPanel(container, appid, p2);
+                    });
+            });
+        };
+
+        // Activate buttons
+        container.querySelectorAll('.lt-prof-act').forEach(function (btn) {
+            btn.onclick = function () {
+                var slug = btn.getAttribute('data-slug');
+                if (!window.confirm('Activate this profile? Current .lua will be backed up to .pre-activate-*.json before being overwritten.')) return;
+                btn.disabled = true; btn.textContent = 'Activating…';
+                Millennium.callServerMethod('luatools', 'ActivateProfile', {
+                    appid: appid, slug: slug, applyLaunchOptions: true,
+                    accountId32: 0, contentScriptQuery: ''
+                }).then(function (res) {
+                    var p = typeof res === 'string' ? JSON.parse(res) : res;
+                    if (!p || !p.success) {
+                        container.innerHTML = '<span style="color:#f44336;">' + (p && p.error || 'Failed') + '</span>';
+                        return;
+                    }
+                    Millennium.callServerMethod('luatools', 'ListProfilesFor', { appid: appid, contentScriptQuery: '' })
+                        .then(function (r2) {
+                            var p2 = typeof r2 === 'string' ? JSON.parse(r2) : r2;
+                            renderProfilesPanel(container, appid, p2);
+                        });
+                });
+            };
+        });
+
+        // Delete buttons
+        container.querySelectorAll('.lt-prof-del').forEach(function (btn) {
+            btn.onclick = function () {
+                var slug = btn.getAttribute('data-slug');
+                var name = btn.getAttribute('data-name');
+                if (!window.confirm('Delete profile "' + name + '"? This cannot be undone.')) return;
+                Millennium.callServerMethod('luatools', 'DeleteProfile', {
+                    appid: appid, slug: slug, contentScriptQuery: ''
+                }).then(function () {
+                    Millennium.callServerMethod('luatools', 'ListProfilesFor', { appid: appid, contentScriptQuery: '' })
+                        .then(function (r2) {
+                            var p2 = typeof r2 === 'string' ? JSON.parse(r2) : r2;
+                            renderProfilesPanel(container, appid, p2);
+                        });
+                });
+            };
+        });
+    }
+
+
+    function renderWorkshopPanel(container, appid, accounts, currentAcc) {
+        // Account picker + load
+        function load(accId) {
+            container.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Querying Workshop API…';
+            Millennium.callServerMethod('luatools', 'ListWorkshopSubscribed', {
+                appid: appid, accountId32: accId, contentScriptQuery: ''
+            }).then(function (res) {
+                var p = typeof res === 'string' ? JSON.parse(res) : res;
+                if (!p || !p.success) {
+                    container.innerHTML = '<span style="color:#f44336;">' + (p && p.error || 'Failed') + '</span>';
+                    return;
+                }
+                render(p, accId);
+            });
+        }
+
+        function render(p, accId) {
+            var html = '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;gap:8px;">';
+            html += '<div style="font-weight:600;color:#66c0f4;">📦 Workshop: AppID ' + appid + '</div>';
+            html += '<select id="lt-ws-acct" style="background:#1a1a1a;border:1px solid #333;border-radius:3px;color:#ccc;padding:3px 8px;font-size:11px;">';
+            accounts.forEach(function (a) {
+                var sel = a.accountId32 === accId ? ' selected' : '';
+                html += '<option value="' + a.accountId32 + '"' + sel + '>' + (a.personaName || a.username || a.accountId32) + (a.mostRecent ? ' (active)' : '') + '</option>';
+            });
+            html += '</select></div>';
+
+            if (p.message) {
+                html += '<div style="color:#888;font-size:12px;padding:10px;background:rgba(0,0,0,0.2);border-radius:5px;">' + p.message + '</div>';
+                container.innerHTML = html;
+                wireAcct(); return;
+            }
+
+            html += '<div style="font-size:11px;color:#aaa;margin-bottom:8px;">';
+            html += 'Subscribed: <b>' + p.totalSubscribed + '</b> · ';
+            html += 'Downloaded: <b style="color:#4caf50;">' + p.downloadedCount + '</b> · ';
+            html += 'Missing: <b style="color:#ff9800;">' + p.missingCount + '</b>';
+            html += '</div>';
+
+            html += '<div style="display:grid;gap:6px;max-height:380px;overflow-y:auto;">';
+            (p.items || []).forEach(function (item) {
+                var icon, color, bg;
+                if (item.banned) { icon = '🚫'; color = '#f44336'; bg = 'rgba(244,67,54,0.05)'; }
+                else if (item.result === 9) { icon = '❓'; color = '#9c27b0'; bg = 'rgba(156,39,176,0.05)'; }
+                else if (item.downloaded) { icon = '✅'; color = '#4caf50'; bg = 'rgba(76,175,80,0.05)'; }
+                else if (!item.hasFileUrl) { icon = '🔒'; color = '#888'; bg = 'rgba(255,255,255,0.03)'; }
+                else { icon = '⬇'; color = '#ff9800'; bg = 'rgba(255,150,0,0.05)'; }
+
+                html += '<div style="padding:8px;background:' + bg + ';border:1px solid ' + color + '33;border-radius:5px;">';
+                html += '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;">';
+                html += '<div style="flex:1;min-width:0;">';
+                html += '<div style="font-size:12px;color:#ccc;">' + icon + ' ' + (item.title || '(untitled)');
+                html += ' <span style="color:#666;font-family:monospace;font-size:10px;">[' + item.workshopId + ']</span>';
+                html += '</div>';
+                html += '<div style="font-size:10px;color:#888;margin-top:2px;font-family:monospace;">';
+                if (item.downloaded) {
+                    html += 'Local: ' + (item.localBytes / 1024 / 1024).toFixed(2) + ' MB';
+                } else if (item.remoteBytes) {
+                    html += 'Remote: ' + (item.remoteBytes / 1024 / 1024).toFixed(2) + ' MB';
+                } else {
+                    html += 'size: unknown';
+                }
+                if (item.banned) html += ' · BANNED';
+                if (item.result === 9) html += ' · NOT FOUND';
+                if (!item.hasFileUrl && !item.downloaded && !item.banned) html += ' · no direct URL (hidden item)';
+                html += '</div></div>';
+
+                html += '<div style="display:flex;gap:4px;flex-shrink:0;">';
+                if (item.downloaded) {
+                    html += '<button class="lt-ws-del" data-id="' + item.workshopId + '" data-title="' + (item.title || '').replace(/"/g,'') + '" style="padding:4px 8px;background:rgba(244,67,54,0.15);border:1px solid rgba(244,67,54,0.4);border-radius:3px;color:#f44336;font-size:11px;cursor:pointer;">🗑</button>';
+                } else if (item.hasFileUrl && !item.banned && item.result !== 9) {
+                    html += '<button class="lt-ws-dl" data-id="' + item.workshopId + '" data-title="' + (item.title || '').replace(/"/g,'') + '" style="padding:4px 10px;background:rgba(102,192,244,0.2);border:1px solid rgba(102,192,244,0.5);border-radius:3px;color:#66c0f4;font-size:11px;cursor:pointer;font-weight:600;">⬇ Download</button>';
+                }
+                html += '</div>';
+                html += '</div></div>';
+            });
+            html += '</div>';
+
+            container.innerHTML = html;
+            wireAcct();
+
+            container.querySelectorAll('.lt-ws-dl').forEach(function (btn) {
+                btn.onclick = function () {
+                    var wid = btn.getAttribute('data-id');
+                    btn.disabled = true; btn.textContent = '⏳ Downloading…';
+                    Millennium.callServerMethod('luatools', 'DownloadWorkshopItem', {
+                        appid: appid, workshopId: wid, contentScriptQuery: ''
+                    }).then(function (res) {
+                        var p = typeof res === 'string' ? JSON.parse(res) : res;
+                        if (p && p.success) {
+                            btn.textContent = '✅ ' + p.fileCount + ' files';
+                            setTimeout(function () { load(accId); }, 800);
+                        } else {
+                            btn.textContent = '❌ ' + ((p && p.error || 'Failed').substring(0, 30));
+                            setTimeout(function () { btn.disabled = false; btn.textContent = '⬇ Download'; }, 4000);
+                        }
+                    });
+                };
+            });
+
+            container.querySelectorAll('.lt-ws-del').forEach(function (btn) {
+                btn.onclick = function () {
+                    var wid = btn.getAttribute('data-id');
+                    var t = btn.getAttribute('data-title');
+                    if (!window.confirm('Delete local copy of "' + t + '"?')) return;
+                    Millennium.callServerMethod('luatools', 'DeleteWorkshopItem', {
+                        appid: appid, workshopId: wid, contentScriptQuery: ''
+                    }).then(function () { load(accId); });
+                };
+            });
+        }
+
+        function wireAcct() {
+            var sel = container.querySelector('#lt-ws-acct');
+            if (sel) sel.onchange = function () { load(parseInt(sel.value)); };
+        }
+
+        load(currentAcc);
+    }
+
+
+    // ── Achievement Watchlist (read-only) ─────────────────────────────
+    function showAchievementWatchPanel() {
+        _stOverlayShell('🏆 Achievement Watchlist', function (body, ov, colors) {
+            var intro = document.createElement('div');
+            intro.style.cssText = 'font-size:12px;color:#aaa;line-height:1.6;margin-bottom:10px;padding:8px;background:rgba(102,192,244,0.05);border:1px solid rgba(102,192,244,0.2);border-radius:5px;';
+            intro.innerHTML = '<i class="fa-solid fa-info-circle" style="color:#66c0f4;margin-right:5px;"></i>' +
+                '<b>Read-only dashboard.</b> Cross-references Steam Web API with local <code style="background:rgba(0,0,0,0.3);padding:1px 4px;border-radius:3px;">UserGameStats_*.bin</code> files. ' +
+                'Never modifies stats files — no risk to your public profile or VAC standing.';
+            body.appendChild(intro);
+
+            var accountRow = document.createElement('div');
+            accountRow.style.cssText = 'display:flex;align-items:center;gap:8px;margin-bottom:10px;padding:8px;background:rgba(255,255,255,0.03);border-radius:5px;';
+            accountRow.innerHTML = '<span style="font-size:12px;color:#aaa;">Account:</span>' +
+                '<select id="lt-aw-acct" style="flex:1;background:#1a1a1a;border:1px solid #333;border-radius:3px;color:#ccc;padding:5px 8px;font-size:12px;"><option value="0">— loading —</option></select>';
+            body.appendChild(accountRow);
+
+            var statsBar = document.createElement('div');
+            statsBar.style.cssText = 'padding:8px 10px;background:rgba(0,0,0,0.2);border-radius:5px;margin-bottom:10px;font-size:11px;color:#aaa;';
+            statsBar.textContent = 'Loading…';
+            body.appendChild(statsBar);
+
+            var list = document.createElement('div');
+            list.style.cssText = 'max-height:400px;overflow-y:auto;';
+            body.appendChild(list);
+
+            function load(accId) {
+                statsBar.textContent = 'Scanning .lua-activated games…';
+                list.innerHTML = '<div style="text-align:center;padding:20px;color:#888;"><i class="fa-solid fa-spinner fa-spin"></i> Loading…</div>';
+                Millennium.callServerMethod('luatools', 'ListAchievementWatchlist', {
+                    accountId32: accId, contentScriptQuery: ''
+                }).then(function (res) {
+                    var p = typeof res === 'string' ? JSON.parse(res) : res;
+                    if (!p || !p.success) {
+                        statsBar.innerHTML = '<span style="color:#f44336;">' + (p && p.error || 'Failed') + '</span>';
+                        list.innerHTML = '';
+                        return;
+                    }
+                    statsBar.innerHTML =
+                        'Total games: <b>' + p.totalGames + '</b> · ' +
+                        'With progress: <b style="color:#4caf50;">' + p.gamesWithProgress + '</b> · ' +
+                        'Total unlocks: <b style="color:#ffc800;">' + p.totalUnlocked + '</b>';
+
+                    if (!p.games || !p.games.length) {
+                        list.innerHTML = '<div style="text-align:center;color:#888;padding:20px;">No .lua-activated games found.</div>';
+                        return;
+                    }
+
+                    var html = '<div style="display:grid;gap:6px;">';
+                    p.games.forEach(function (g) {
+                        var hasStats = g.hasStatsFile && !g.seeded_empty;
+                        var bg = hasStats ? 'rgba(76,175,80,0.05)' :
+                                  (g.hasSchema ? 'rgba(255,200,0,0.05)' : 'rgba(255,255,255,0.03)');
+                        var border = hasStats ? 'rgba(76,175,80,0.2)' :
+                                       (g.hasSchema ? 'rgba(255,200,0,0.2)' : 'rgba(255,255,255,0.06)');
+                        html += '<div style="padding:8px;background:' + bg + ';border:1px solid ' + border + ';border-radius:5px;display:flex;justify-content:space-between;align-items:center;gap:8px;cursor:pointer;" data-appid="' + g.appid + '" class="lt-aw-row">';
+                        html += '<div style="flex:1;min-width:0;">';
+                        html += '<div style="font-size:13px;color:#ccc;font-family:monospace;">AppID ' + g.appid;
+                        if (g.unlockedCount > 0) html += ' <span style="background:#1b6fa8;border-radius:3px;padding:1px 6px;font-size:10px;margin-left:4px;">' + g.unlockedCount + ' unlocked</span>';
+                        else if (g.seeded_empty) html += ' <span style="color:#888;font-size:10px;margin-left:4px;">(seeded, no progress)</span>';
+                        else if (!g.hasStatsFile) html += ' <span style="color:#ff9800;font-size:10px;margin-left:4px;">(no stats — launch game once)</span>';
+                        html += '</div>';
+                        html += '<div style="font-size:10px;color:#888;margin-top:2px;">';
+                        html += g.hasSchema ? ('schema: ' + (g.schemaSize / 1024).toFixed(1) + ' KB') : 'no schema yet';
+                        if (g.lastUnlockTs) html += ' · last: ' + new Date(g.lastUnlockTs * 1000).toLocaleDateString();
+                        html += '</div></div>';
+                        html += '<button class="lt-aw-detail" data-appid="' + g.appid + '" style="padding:4px 10px;background:rgba(102,192,244,0.2);border:1px solid rgba(102,192,244,0.5);border-radius:3px;color:#66c0f4;font-size:11px;cursor:pointer;white-space:nowrap;">📊 Details</button>';
+                        html += '</div>';
+                    });
+                    html += '</div>';
+                    list.innerHTML = html;
+
+                    list.querySelectorAll('.lt-aw-detail').forEach(function (btn) {
+                        btn.onclick = function (ev) {
+                            ev.stopPropagation();
+                            var appid = parseInt(btn.getAttribute('data-appid'));
+                            showAchievementDetails(appid, accId, list);
+                        };
+                    });
+                });
+            }
+
+            function showAchievementDetails(appid, accId, container) {
+                container.innerHTML = '<div style="text-align:center;padding:20px;color:#888;"><i class="fa-solid fa-spinner fa-spin"></i> Fetching schema + parsing stats…</div>';
+                Millennium.callServerMethod('luatools', 'GetAchievementProgress', {
+                    appid: appid, accountId32: accId, contentScriptQuery: ''
+                }).then(function (res) {
+                    var p = typeof res === 'string' ? JSON.parse(res) : res;
+                    var html = '<div style="margin-bottom:8px;"><button id="lt-aw-back" style="padding:5px 12px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:4px;color:#ccc;font-size:12px;cursor:pointer;">← Back</button></div>';
+                    if (!p || !p.success) {
+                        html += '<div style="color:#f44336;">' + (p && p.error || 'Failed') + '</div>';
+                        container.innerHTML = html;
+                        document.getElementById('lt-aw-back').onclick = function () { load(accId); };
+                        return;
+                    }
+
+                    html += '<div style="padding:12px;background:rgba(102,192,244,0.05);border:1px solid rgba(102,192,244,0.2);border-radius:6px;margin-bottom:10px;">';
+                    html += '<div style="font-size:14px;font-weight:600;color:#66c0f4;">' + (p.gameName || ('AppID ' + p.appid)) + '</div>';
+                    html += '<div style="font-size:11px;color:#888;margin-top:2px;">Schema source: ' + (p.schemaSource || 'none') + '</div>';
+                    html += '</div>';
+
+                    // Big progress card
+                    var pct = p.percentage || 0;
+                    var pctColor = pct >= 75 ? '#4caf50' : (pct >= 25 ? '#ffc800' : '#ff9800');
+                    html += '<div style="padding:14px;background:rgba(0,0,0,0.2);border-radius:6px;margin-bottom:10px;">';
+                    html += '<div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px;">';
+                    html += '<div style="font-size:24px;font-weight:700;color:' + pctColor + ';">' + pct + '%</div>';
+                    html += '<div style="font-size:12px;color:#aaa;">' + p.unlockedCount + ' / ' + p.totalAchievements + '</div>';
+                    html += '</div>';
+                    // Progress bar
+                    html += '<div style="height:8px;background:rgba(255,255,255,0.05);border-radius:4px;overflow:hidden;">';
+                    html += '<div style="height:100%;width:' + pct + '%;background:' + pctColor + ';"></div>';
+                    html += '</div></div>';
+
+                    if (!p.statsFileExists) {
+                        html += '<div style="padding:10px;background:rgba(255,150,0,0.05);border:1px solid rgba(255,150,0,0.2);border-radius:5px;color:#ff9800;font-size:11px;">⚠️ Local stats file missing. Launch the game once to populate.</div>';
+                    } else if (p.seeded_empty) {
+                        html += '<div style="padding:10px;background:rgba(102,192,244,0.05);border:1px solid rgba(102,192,244,0.2);border-radius:5px;color:#66c0f4;font-size:11px;">ℹ️ Stats file is the empty seed template. Play the game to record unlocks.</div>';
+                    }
+
+                    if ((p.recentUnlocks || []).length) {
+                        html += '<div style="margin-top:10px;"><div style="font-size:11px;color:#aaa;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;">Recent unlocks</div>';
+                        p.recentUnlocks.forEach(function (ts) {
+                            html += '<div style="font-size:11px;color:#ccc;font-family:monospace;padding:3px 0;">🏆 ' + new Date(ts * 1000).toLocaleString() + '</div>';
+                        });
+                        html += '</div>';
+                    }
+
+                    container.innerHTML = html;
+                    document.getElementById('lt-aw-back').onclick = function () { load(accId); };
+                });
+            }
+
+            function loadAccounts() {
+                return Millennium.callServerMethod('luatools', 'GetActiveAccounts', { contentScriptQuery: '' })
+                    .then(function (res) {
+                        var p = typeof res === 'string' ? JSON.parse(res) : res;
+                        var sel = document.getElementById('lt-aw-acct');
+                        var defaultAcc = 0;
+                        if (p && p.accounts && p.accounts.length) {
+                            sel.innerHTML = '';
+                            p.accounts.forEach(function (a) {
+                                var opt = document.createElement('option');
+                                opt.value = a.accountId32;
+                                opt.textContent = (a.personaName || a.username || a.accountId32) + (a.mostRecent ? ' (active)' : '');
+                                if (a.mostRecent) { opt.selected = true; defaultAcc = a.accountId32; }
+                                sel.appendChild(opt);
+                            });
+                            if (!defaultAcc && p.accounts[0]) defaultAcc = p.accounts[0].accountId32;
+                            sel.onchange = function () { load(parseInt(sel.value)); };
+                        }
+                        return defaultAcc;
+                    });
+            }
+
+            loadAccounts().then(function (acc) { if (acc) load(acc); });
+        });
+    }
+
+
+    function suggestIngriaTheme() {
+        // One-time non-modal suggestion when locale switches to ru.
+        // Tagline is brand-flavored regional identity, not political slogan.
+        var existing = document.getElementById('lt-ingria-suggest');
+        if (existing) existing.remove();
+
+        var card = document.createElement('div');
+        card.id = 'lt-ingria-suggest';
+        card.style.cssText = 'position:fixed;bottom:20px;right:20px;z-index:9999;' +
+            'width:340px;padding:14px;border-radius:8px;' +
+            'background:#0a1929;border:1px solid rgba(0,167,230,0.4);' +
+            'box-shadow:0 8px 24px rgba(0,0,0,0.5);' +
+            'font-family:system-ui,-apple-system,sans-serif;' +
+            'animation:lt-ingria-fadein 0.3s ease;';
+
+        card.innerHTML =
+            '<style>@keyframes lt-ingria-fadein{from{opacity:0;transform:translateY(20px);}to{opacity:1;transform:translateY(0);}}</style>' +
+            '<div style="font-size:14px;font-weight:500;color:#ffffff;margin-bottom:4px;">' +
+            'Тема Ingria' +
+            '</div>' +
+            '<div style="font-size:10px;color:#5cc4ee;letter-spacing:0.5px;margin-bottom:8px;font-family:Georgia,serif;font-style:italic;">' +
+            'Made in Ingria by Free People' +
+            '</div>' +
+            '<div style="font-size:11px;color:#d8edf8;line-height:1.5;margin-bottom:10px;">' +
+            'Светлая тема в синих тонах. Применить?' +
+            '</div>' +
+            '<div style="display:flex;gap:6px;">' +
+            '<button id="lt-ingria-apply" style="flex:1;padding:6px 10px;background:#00a7e6;border:none;border-radius:4px;color:#ffffff;font-size:12px;font-weight:500;cursor:pointer;">Применить</button>' +
+            '<button id="lt-ingria-dismiss" style="padding:6px 10px;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.15);border-radius:4px;color:#d8edf8;font-size:12px;cursor:pointer;">Позже</button>' +
+            '</div>';
+        document.body.appendChild(card);
+
+        document.getElementById('lt-ingria-apply').onclick = function () {
+            Millennium.callServerMethod('luatools', 'ApplySettingsChanges', {
+                contentScriptQuery: '',
+                changesJson: JSON.stringify({ general: { theme: 'ingria' } })
+            }).then(function () {
+                try {
+                    if (window.__LuaToolsSettings && window.__LuaToolsSettings.values && window.__LuaToolsSettings.values.general) {
+                        window.__LuaToolsSettings.values.general.theme = 'ingria';
+                    }
+                } catch (_) {}
+                ensureLuaToolsStyles();
+                card.remove();
+            }).catch(function () { card.remove(); });
+        };
+        document.getElementById('lt-ingria-dismiss').onclick = function () { card.remove(); };
+
+        setTimeout(function () {
+            var c = document.getElementById('lt-ingria-suggest');
+            if (c) c.remove();
+        }, 30000);
+    }
+
+
+
+
     function showRepairDepotCachePanel() {
         _stOverlayShell('🔧 Repair Depot Cache', function (body, ov, colors) {
             // Config panel
@@ -2267,6 +3494,66 @@
                         + '\n<b>DLC included:</b> ' + (dlc.included || []).length + '/' + (dlc.total || 0)
                         + ((dlc.missing || []).length ? '\n<b style="color:#f44336;">DLC missing:</b> ' + (dlc.missing || []).join(', ') : '');
                 });
+
+            makeBtn('DLC Overview', 'fa-list-check', function () {
+                callAndShow('GetDlcOverview', { appid: appid, contentScriptQuery: '' }, function (p) {
+                    if (!p.success) return '<span style="color:#f44336;">' + (p.error || 'Failed') + '</span>';
+                    if (!p.dlcs || !p.dlcs.length) return '<span style="color:#888;">No DLCs for ' + p.gameName + '</span>';
+                    var html = '<div style="margin-bottom:8px;font-weight:600;color:' + colors.accent + ';">' + p.gameName + ' — ' + p.totalDlcs + ' DLC(s)</div>';
+                    html += '<div style="display:flex;gap:12px;font-size:11px;color:#aaa;margin-bottom:8px;">';
+                    html += '<span>✅ Active: <b style="color:#4caf50;">' + p.active + '</b></span>';
+                    html += '<span>⚠️ Missing: <b style="color:#ff9800;">' + p.missing + '</b></span>';
+                    if (p.orphans) html += '<span>👻 Orphans: <b style="color:#9c27b0;">' + p.orphans + '</b></span>';
+                    html += '</div>';
+                    html += '<div style="display:grid;grid-template-columns:repeat(auto-fill, minmax(280px, 1fr));gap:6px;">';
+                    p.dlcs.forEach(function (d) {
+                        var icon, color, bg;
+                        if (d.status === 'active') { icon = '✅'; color = '#4caf50'; bg = 'rgba(76,175,80,0.05)'; }
+                        else if (d.status === 'added_no_manifest') { icon = '⚡'; color = '#ffc800'; bg = 'rgba(255,200,0,0.05)'; }
+                        else if (d.status === 'orphan') { icon = '👻'; color = '#9c27b0'; bg = 'rgba(156,39,176,0.05)'; }
+                        else { icon = '⚠️'; color = '#ff9800'; bg = 'rgba(255,150,0,0.05)'; }
+                        html += '<div style="padding:6px 8px;background:' + bg + ';border:1px solid ' + color + '33;border-radius:5px;font-size:11px;">';
+                        html += '<div style="color:' + color + ';font-weight:600;">' + icon + ' ' + d.name + '</div>';
+                        html += '<div style="color:#666;font-size:10px;font-family:monospace;margin-top:2px;">ID: ' + d.id;
+                        if (d.manifestId) html += ' · Manifest: ' + d.manifestId.substring(0, 14) + (d.manifestId.length > 14 ? '…' : '');
+                        html += '</div>';
+                        html += '</div>';
+                    });
+                    html += '</div>';
+                    return html;
+                });
+            });
+
+            makeBtn('Profiles (save / switch configurations)', 'fa-id-card-clip', function () {
+                var r = resultArea();
+                r.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Loading profiles…';
+                Millennium.callServerMethod('luatools', 'ListProfilesFor', { appid: appid, contentScriptQuery: '' })
+                    .then(function (res) {
+                        var p = typeof res === 'string' ? JSON.parse(res) : res;
+                        if (!p || !p.success) {
+                            r.innerHTML = '<span style="color:#f44336;">' + (p && p.error || 'Failed') + '</span>';
+                            return;
+                        }
+                        renderProfilesPanel(r, appid, p);
+                    });
+            });
+
+            makeBtn('Workshop Content (subscribed items)', 'fa-cubes', function () {
+                var r = resultArea();
+                r.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Loading account list…';
+                Millennium.callServerMethod('luatools', 'GetActiveAccounts', { contentScriptQuery: '' })
+                    .then(function (accRes) {
+                        var accInfo = typeof accRes === 'string' ? JSON.parse(accRes) : accRes;
+                        var accounts = (accInfo && accInfo.accounts) || [];
+                        if (!accounts.length) {
+                            r.innerHTML = '<span style="color:#ff9800;">No Steam accounts with userdata found.</span>';
+                            return;
+                        }
+                        // Use most recent or first
+                        var defaultAcc = accounts.find(function (a) { return a.mostRecent; }) || accounts[0];
+                        renderWorkshopPanel(r, appid, accounts, defaultAcc.accountId32);
+                    });
+            });
             });
 
             makeBtn('Validate Lua Syntax', 'fa-spell-check', function () {
@@ -2833,6 +4120,7 @@
                         + '<button id="lt-sentinel-toggle" style="padding:10px 14px;background:' + (info.enabled ? '#f44336' : '#4caf50') + ';color:#fff;border:none;border-radius:8px;cursor:pointer;min-width:140px;">' + (info.enabled ? 'Disable Sentinel' : 'Enable Sentinel') + '</button>'
                         + '<button id="lt-sentinel-run" style="padding:10px 14px;background:' + (info.running ? '#ff9800' : '#1976d2') + ';color:#fff;border:none;border-radius:8px;cursor:pointer;min-width:140px;">' + (info.running ? 'Stop Sentinel' : 'Start Sentinel') + '</button>'
                         + '<button id="lt-sentinel-staleness" style="padding:10px 14px;background:#673ab7;color:#fff;border:none;border-radius:8px;cursor:pointer;min-width:160px;">Check Manifest Staleness</button>'
+                        + '<button id="lt-sentinel-service" style="padding:10px 14px;background:#37474f;color:#fff;border:1px solid rgba(255,255,255,0.12);border-radius:8px;cursor:pointer;min-width:170px;">Background Service…</button>'
                         + '<button id="lt-sentinel-refresh" style="padding:10px 14px;background:rgba(255,255,255,0.08);color:#fff;border:1px solid rgba(255,255,255,0.12);border-radius:8px;cursor:pointer;min-width:120px;">Refresh</button>'
                         + '</div>';
                     html += '<div id="lt-sentinel-results" style="margin-top:12px;max-height:40vh;overflow-y:auto;"></div>';
@@ -2874,6 +4162,82 @@
 
                     document.getElementById('lt-sentinel-refresh').onclick = function () {
                         showSentinelPanel();
+                    };
+
+                    document.getElementById('lt-sentinel-service').onclick = function () {
+                        var rc = document.getElementById('lt-sentinel-results');
+                        rc.innerHTML = '<div style="text-align:center;padding:10px;color:' + colors.accent + '"><i class="fa-solid fa-spinner fa-spin"></i> Checking service status…</div>';
+                        Millennium.callServerMethod('luatools', 'GetSentinelService', { contentScriptQuery: '' })
+                            .then(function (r) {
+                                var s = typeof r === 'string' ? JSON.parse(r) : r;
+                                if (!s.supported) {
+                                    rc.innerHTML = '<div style="padding:12px;background:rgba(255,200,0,0.1);border:1px solid rgba(255,200,0,0.3);border-radius:8px;color:#ffc800;">⚠️ ' + (s.message || 'Windows-only feature') + '</div>';
+                                    return;
+                                }
+                                var html = '<div style="padding:14px;background:rgba(0,0,0,0.25);border-radius:8px;border:1px solid rgba(255,255,255,0.08);">';
+                                html += '<div style="font-size:13px;font-weight:600;color:' + colors.accent + ';margin-bottom:8px;">🛠 Sentinel background service</div>';
+                                html += '<div style="font-size:11px;color:#aaa;line-height:1.6;margin-bottom:10px;">Runs Sentinel as a systemd user service that auto-starts with your session — keeps watching even when Steam isn\'t open.</div>';
+                                if (s.installed) {
+                                    html += '<div style="font-size:11px;color:#ccc;font-family:monospace;background:rgba(0,0,0,0.3);padding:8px;border-radius:5px;margin-bottom:10px;">';
+                                    html += 'Unit: <b style="color:#4caf50;">' + (s.unitName || 'luatools-sentinel.service') + '</b><br>';
+                                    if (typeof s.enabled !== 'undefined') html += 'Enabled: ' + (s.enabled ? '<b style="color:#4caf50;">yes</b>' : 'no') + (s.enabledState ? ' (' + s.enabledState + ')' : '') + '<br>';
+                                    if (typeof s.active !== 'undefined') html += 'Active: ' + (s.active ? '<b style="color:#4caf50;">running</b>' : 'stopped') + (s.activeState ? ' (' + s.activeState + ')' : '') + '<br>';
+                                    if (s.unitPath) html += 'Unit file: ' + s.unitPath + '<br>';
+                                    if (s.Status) html += 'Status: ' + s.Status + '<br>';
+                                    if (s["Last Run Time"]) html += 'Last run: ' + s["Last Run Time"] + '<br>';
+                                    if (s["Next Run Time"]) html += 'Next run: ' + s["Next Run Time"] + '<br>';
+                                    if (s["Last Result"]) html += 'Last result: ' + s["Last Result"];
+                                    html += '</div>';
+                                    html += '<div style="display:flex;gap:6px;">';
+                                    html += '<button id="lt-svc-start" style="flex:1;padding:7px;background:rgba(102,192,244,0.2);border:1px solid rgba(102,192,244,0.5);border-radius:4px;color:#66c0f4;font-size:12px;cursor:pointer;">▶ Start now</button>';
+                                    html += '<button id="lt-svc-uninstall" style="flex:1;padding:7px;background:rgba(244,67,54,0.15);border:1px solid rgba(244,67,54,0.4);border-radius:4px;color:#f44336;font-size:12px;cursor:pointer;">🗑 Uninstall</button>';
+                                    html += '</div>';
+                                } else {
+                                    html += '<div style="font-size:11px;color:#aaa;margin-bottom:10px;">Service is not installed. Click below to register a systemd user service that auto-starts with your session (no root needed).</div>';
+                                    html += '<button id="lt-svc-install" style="width:100%;padding:8px;background:rgba(76,175,80,0.2);border:1px solid rgba(76,175,80,0.5);border-radius:4px;color:#4caf50;font-size:12px;font-weight:600;cursor:pointer;">📥 Install background service</button>';
+                                }
+                                html += '</div>';
+                                rc.innerHTML = html;
+
+                                var inst = document.getElementById('lt-svc-install');
+                                if (inst) inst.onclick = function () {
+                                    inst.disabled = true; inst.textContent = 'Installing…';
+                                    Millennium.callServerMethod('luatools', 'InstallSentinelService', { contentScriptQuery: '' })
+                                        .then(function (rr) {
+                                            var pp = typeof rr === 'string' ? JSON.parse(rr) : rr;
+                                            if (pp && pp.success) {
+                                                rc.innerHTML = '<div style="padding:12px;background:rgba(76,175,80,0.1);border:1px solid rgba(76,175,80,0.3);border-radius:8px;color:#4caf50;">✅ ' + (pp.message || 'Installed') + '<div style="font-size:11px;color:#888;margin-top:6px;font-family:monospace;">Interpreter: ' + pp.interpreter + '</div></div>';
+                                            } else {
+                                                rc.innerHTML = '<div style="color:#f44336;">' + (pp && pp.error || 'Failed') + '</div>';
+                                            }
+                                        });
+                                };
+
+                                var uns = document.getElementById('lt-svc-uninstall');
+                                if (uns) uns.onclick = function () {
+                                    if (!window.confirm('Remove the systemd service? Sentinel will no longer auto-start with your session.')) return;
+                                    Millennium.callServerMethod('luatools', 'UninstallSentinelService', { contentScriptQuery: '' })
+                                        .then(function (rr) {
+                                            var pp = typeof rr === 'string' ? JSON.parse(rr) : rr;
+                                            if (pp && pp.success) {
+                                                rc.innerHTML = '<div style="padding:12px;background:rgba(255,150,0,0.1);border:1px solid rgba(255,150,0,0.3);border-radius:8px;color:#ff9800;">🗑 Task removed.</div>';
+                                            } else {
+                                                rc.innerHTML = '<div style="color:#f44336;">' + (pp && pp.error || 'Failed') + '</div>';
+                                            }
+                                        });
+                                };
+
+                                var st = document.getElementById('lt-svc-start');
+                                if (st) st.onclick = function () {
+                                    st.disabled = true; st.textContent = 'Starting…';
+                                    Millennium.callServerMethod('luatools', 'StartSentinelServiceNow', { contentScriptQuery: '' })
+                                        .then(function (rr) {
+                                            var pp = typeof rr === 'string' ? JSON.parse(rr) : rr;
+                                            st.textContent = pp && pp.success ? '✓ Triggered' : 'Failed';
+                                            setTimeout(function () { st.disabled = false; st.textContent = '▶ Start now'; }, 2000);
+                                        });
+                                };
+                            });
                     };
 
                     document.getElementById('lt-sentinel-staleness').onclick = function () {
@@ -3508,7 +4872,7 @@
 
             // If the active theme is light, make certain fix action texts/icons white for readability.
             try {
-                const currentThemeKey = (((window.__LuaToolsSettings || {}).values || {}).general || {}).theme || 'original';
+                const currentThemeKey = (((window.__LuaToolsSettings || {}).values || {}).general || {}).theme || 'ingria';
                 // Use localized labels so this works in other languages
                 const applyLabel = lt('Apply');
                 const onlineUnsteamLabel = lt('Online Fix (Unsteam)');
@@ -5682,6 +7046,16 @@
                 if (oldTheme !== newTheme) {
                     ensureLuaToolsStyles();
                 }
+
+                // Locale → Ingria theme one-time suggestion
+                try {
+                    var newLocale = response && response.language;
+                    var lastSuggested = (window.localStorage && window.localStorage.getItem('lt_ingria_suggested')) || '';
+                    if (newLocale === 'ru' && lastSuggested !== 'yes' && newTheme !== 'ingria') {
+                        suggestIngriaTheme();
+                        try { window.localStorage.setItem('lt_ingria_suggested', 'yes'); } catch (_) {}
+                    }
+                } catch (_) { /* localStorage may be blocked */ }
             }).catch(function (err) {
                 const message = err && err.message ? err.message : t('settings.saveError', 'Failed to save settings.');
                 setStatus(message, '#ff5c5c');

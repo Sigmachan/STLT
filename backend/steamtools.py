@@ -1,4 +1,4 @@
-"""SteamTools integration module for LuaTools Ultimate v8.1.
+"""SteamTools integration module for LuaTools Ultimate.
 
 All operations are Windows 11 native  --  no WSL, no bash, no background daemons.
 Every function runs on-demand (zero-bloat, trigger-only).
@@ -18,6 +18,7 @@ Features:
 from __future__ import annotations
 
 import datetime
+import sys
 import json
 import os
 import re
@@ -36,6 +37,7 @@ try:
 except Exception:  # pragma: no cover - defensive fallback for standalone use
     USER_AGENT = "LuaTools/1.0"
 from steam_utils import detect_steam_install_path, _parse_vdf_simple
+from steam_version import _steam_is_running
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -1063,6 +1065,14 @@ def smart_restart_steam(clear_beta: bool = True) -> str:
     Ported from multiple clemdotla/madoiscool PS1 scripts into Python.
     Windows-only, no WSL.
     """
+    if not sys.platform.startswith("win"):
+        return json.dumps({
+            "success": False,
+            "error": ("Smart Steam restart uses Windows taskkill / detached "
+                      "process spawn; Linux uses different process management. "
+                      "Please restart Steam manually for now."),
+            "platform": "linux", "shelved": True,
+        })
     import subprocess
 
     base = _steam_path()
@@ -1188,7 +1198,7 @@ def export_diagnostic_report(appid: int) -> str:
     if fx.get("online"): fixes_parts.append("Online ✓")
     lines.append(f"Fixes Avail:  {', '.join(fixes_parts) if fixes_parts else 'None'}")
     lines.append(f"================================")
-    lines.append(f"LuaTools Ultimate v8.2")
+    lines.append(f"LuaTools Ultimate v{_plugin_version()}")
 
     text = "\n".join(lines)
     return json.dumps({"success": True, "text": text, "appid": appid})
@@ -1255,6 +1265,14 @@ def get_steam_process_info() -> str:
     import subprocess
 
     result: Dict[str, Any] = {"running": False, "processes": []}
+    if not sys.platform.startswith("win"):
+        # Linux: detect via /proc, skip Windows-only memory accounting
+        try:
+            result["running"] = _steam_is_running()
+        except Exception:
+            pass
+        result["platform"] = "linux"
+        return json.dumps(result)
     try:
         out = subprocess.run(
             ["tasklist", "/FI", "IMAGENAME eq steam.exe", "/FO", "CSV", "/NH"],
@@ -1343,14 +1361,9 @@ def get_quick_dashboard() -> str:
     if os.path.isdir(bd):
         stats["backupCount"] = len([f for f in os.listdir(bd) if f.endswith(".zip")])
 
-    # Steam running
+    # Steam running — cross-platform via steam_version helper
     try:
-        import subprocess
-        out = subprocess.run(
-            ["tasklist", "/FI", "IMAGENAME eq steam.exe", "/FO", "CSV", "/NH"],
-            capture_output=True, text=True, timeout=3, creationflags=0x08000000,
-        )
-        stats["steamRunning"] = "steam.exe" in out.stdout.lower()
+        stats["steamRunning"] = _steam_is_running()
     except Exception:
         pass
 
@@ -1634,6 +1647,115 @@ def generate_dlc_config(appid: int, format: str = "creamapi") -> str:
         })
     except Exception as exc:
         return json.dumps({"success": False, "error": str(exc)})
+
+
+def get_dlc_overview(appid: int) -> str:
+    """Per-game DLC status: which DLCs Steam knows about, which the lua has.
+
+    For each DLC ID returned by store.steampowered.com:
+      - id, name, fetched
+      - inLua: True if there's an addappid() line for it in our .lua
+      - hasManifest: True if there's a setManifestid() line for it
+      - exists locally (DLC depot manifest exists on disk)
+
+    Used by the DLC Overview UI panel — purely informational, no writes.
+    """
+    try:
+        appid = int(appid)
+    except Exception:
+        return json.dumps({"success": False, "error": "invalid appid"})
+
+    # 1. DLC list from Steam store
+    try:
+        from http_client import ensure_http_client
+        client = ensure_http_client("dlc_overview")
+        resp = client.get(
+            f"https://store.steampowered.com/api/appdetails?appids={appid}&filters=basic",
+            timeout=10,
+        )
+        if not resp.is_success:
+            return json.dumps({"success": False, "error": f"Store API HTTP {resp.status_code}"})
+        app_data = resp.json().get(str(appid), {}).get("data", {})
+        app_name = app_data.get("name", f"AppID {appid}")
+        dlc_ids = app_data.get("dlc", []) or []
+    except Exception as exc:
+        return json.dumps({"success": False, "error": f"Store API: {exc}"})
+
+    # 2. Read this game's .lua to find what's already activated
+    content_text, _ = _read_lua_file(appid)
+    appids_in_lua: set = set()
+    manifests_in_lua: dict = {}  # depot_id -> manifest_id
+    if content_text:
+        for m in re.finditer(r"addappid\s*\(\s*(\d+)", content_text):
+            appids_in_lua.add(int(m.group(1)))
+        for m in re.finditer(r"setManifestid\s*\(\s*(\d+)\s*,\s*\"?(\d+)", content_text):
+            manifests_in_lua[int(m.group(1))] = m.group(2)
+
+    # 3. For each DLC, fetch its name (parallel-ish via httpx is overkill — just sequential w/ short timeout)
+    dlc_entries: List[Dict[str, Any]] = []
+    fetched_names = 0
+    for dlc_id in dlc_ids[:200]:
+        name = f"DLC {dlc_id}"
+        try:
+            dr = client.get(
+                f"https://store.steampowered.com/api/appdetails?appids={dlc_id}&filters=basic",
+                timeout=5,
+            )
+            if dr.is_success:
+                dd = dr.json().get(str(dlc_id), {}).get("data", {})
+                if dd.get("name"):
+                    name = dd["name"]
+                    fetched_names += 1
+        except Exception:
+            pass
+        import time as _t
+        _t.sleep(0.05)
+
+        in_lua = dlc_id in appids_in_lua
+        has_manifest = dlc_id in manifests_in_lua
+
+        dlc_entries.append({
+            "id": dlc_id,
+            "name": name,
+            "inLua": in_lua,
+            "hasManifest": has_manifest,
+            "manifestId": manifests_in_lua.get(dlc_id, ""),
+            "status": (
+                "active" if (in_lua and has_manifest) else
+                "added_no_manifest" if in_lua else
+                "missing"
+            ),
+        })
+
+    # 4. Also find DLCs in .lua that Steam Store DOESN'T know about (orphans / private DLCs)
+    known_dlc_ids = set(dlc_ids)
+    orphan_appids = appids_in_lua - known_dlc_ids - {appid}  # exclude the base game itself
+    for orphan_id in orphan_appids:
+        if orphan_id in known_dlc_ids:
+            continue
+        dlc_entries.append({
+            "id": orphan_id,
+            "name": f"(unknown depot/DLC {orphan_id})",
+            "inLua": True,
+            "hasManifest": orphan_id in manifests_in_lua,
+            "manifestId": manifests_in_lua.get(orphan_id, ""),
+            "status": "orphan",
+        })
+
+    active = sum(1 for d in dlc_entries if d["status"] == "active")
+    missing = sum(1 for d in dlc_entries if d["status"] == "missing")
+
+    return json.dumps({
+        "success": True,
+        "appid": appid,
+        "gameName": app_name,
+        "totalDlcs": len(dlc_entries),
+        "active": active,
+        "missing": missing,
+        "orphans": sum(1 for d in dlc_entries if d["status"] == "orphan"),
+        "namesFetched": fetched_names,
+        "dlcs": dlc_entries,
+    })
 
 
 def sync_depotcache(appid: int = 0) -> str:
@@ -2490,3 +2612,14 @@ def repair_depot_cache(
         f"junk:{removed_junk} lua_lines:{lua_fixed_total}"
     )
     return json.dumps(report)
+
+def _plugin_version() -> str:
+    """Plugin version from plugin.json. Local copy to avoid circular import."""
+    try:
+        import json as _json
+        from paths import get_plugin_dir as _gpd
+        with open(os.path.join(_gpd(), "plugin.json"), encoding="utf-8") as _fh:
+            return str(_json.load(_fh).get("version", "?"))
+    except Exception:
+        return "?"
+

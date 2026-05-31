@@ -18,6 +18,7 @@ from __future__ import annotations
 import json
 import os
 import subprocess
+import sys
 import tempfile
 import time
 from typing import Any, Dict, List, Optional
@@ -49,18 +50,57 @@ _INF_NAME = "steam.inf"
 _BLOCK_CFG = "BootStrapperInhibitAll=enable\nBootStrapperForceSelfUpdate=disable\n"
 
 
+_IS_WINDOWS = sys.platform.startswith("win")
+
+
 def _steam_is_running() -> bool:
-    """True if steam.exe is currently running (Windows tasklist)."""
+    """True if the Steam client is currently running.
+
+    Linux: scan /proc for a process named exactly 'steam' (the main client;
+    'steamwebhelper' and 'steam.sh' are ignored — we only care about the
+    process that holds steam.cfg open). Falls back to pgrep.
+    Windows (shelved): tasklist lookup for steam.exe.
+
+    On any failure we assume Steam IS running, so callers refuse to touch
+    steam.cfg rather than risk corruption.
+    """
+    if _IS_WINDOWS:
+        try:
+            out = subprocess.run(
+                ["tasklist", "/FI", "IMAGENAME eq steam.exe", "/NH"],
+                capture_output=True, text=True, timeout=5,
+                creationflags=0x08000000,  # CREATE_NO_WINDOW
+            )
+            return "steam.exe" in (out.stdout or "").lower()
+        except Exception:
+            return True
+
+    # Linux — scan /proc/<pid>/comm, no external dependency
+    try:
+        for entry in os.listdir("/proc"):
+            if not entry.isdigit():
+                continue
+            comm_path = os.path.join("/proc", entry, "comm")
+            try:
+                with open(comm_path, "r", encoding="utf-8", errors="ignore") as fh:
+                    comm = fh.read().strip()
+            except (OSError, IOError):
+                continue
+            if comm == "steam":
+                return True
+        return False
+    except Exception:
+        pass
+
+    # Fallback: pgrep, if /proc was unavailable for some reason
     try:
         out = subprocess.run(
-            ["tasklist", "/FI", "IMAGENAME eq steam.exe", "/NH"],
+            ["pgrep", "-x", "steam"],
             capture_output=True, text=True, timeout=5,
-            creationflags=0x08000000,  # CREATE_NO_WINDOW
         )
-        return "steam.exe" in (out.stdout or "").lower()
+        return out.returncode == 0 and bool((out.stdout or "").strip())
     except Exception:
-        # If we cannot tell, be conservative and assume it is running so
-        # the caller refuses to touch steam.cfg rather than risk corruption.
+        # Cannot determine — assume running, stay safe
         return True
 
 

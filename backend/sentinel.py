@@ -98,12 +98,16 @@ class SentinelState:
     last_poll: int = 0  # timestamp
     seen_appids: Set[int] = field(default_factory=set)
     notification_history: Dict[int, int] = field(default_factory=dict)  # appid -> last_notified_ts
+    last_staleness_check: Dict[int, int] = field(default_factory=dict)  # appid -> ts
+    known_stale: Set[int] = field(default_factory=set)  # appids flagged as having stale manifests
 
     def to_dict(self) -> Dict[str, Any]:
         return {
             "last_poll": self.last_poll,
             "seen_appids": list(self.seen_appids),
             "notification_history": {str(k): v for k, v in self.notification_history.items()},
+            "last_staleness_check": {str(k): v for k, v in self.last_staleness_check.items()},
+            "known_stale": list(self.known_stale),
         }
 
     @classmethod
@@ -114,6 +118,10 @@ class SentinelState:
             notification_history={
                 int(k): v for k, v in data.get("notification_history", {}).items()
             },
+            last_staleness_check={
+                int(k): v for k, v in data.get("last_staleness_check", {}).items()
+            },
+            known_stale=set(data.get("known_stale", [])),
         )
 
 class NotificationType(Enum):
@@ -358,6 +366,7 @@ class SentinelDaemon:
         self.running = False
         self.thread: Optional[threading.Thread] = None
         self.lock = threading.RLock()
+        self._stop_event = threading.Event()  # interruptible sleep for clean shutdown
 
         # Components
         self.watcher = FilesystemWatcher(self.steam_path)
@@ -435,8 +444,12 @@ class SentinelDaemon:
             for appid in new_games:
                 self._on_new_game_detected(appid)
 
-            # 2. (Optional in v9.0) Check manifest staleness for installed lua games
-            # Deferred to v9.1
+            # 2. Check manifest staleness for installed .lua games
+            #    Throttled per-appid (default 24h re-check) to avoid hammering api.steamcmd.net.
+            #    Only checks if Sentinel has been running long enough that we expect installed
+            #    games have settled (skip on first poll after start).
+            if self.config.enabled:
+                self._check_manifest_staleness_for_installed()
 
             # 3. Persist state
             self._save_state()
@@ -488,6 +501,116 @@ class SentinelDaemon:
         self.notification_mgr.mark_notified(appid, self.state)
         _logger.log(f"Sentinel: notified user about new game {appid}")
 
+    def _check_manifest_staleness_for_installed(self) -> None:
+        """Sample-check installed .lua scripts for outdated manifests.
+
+        Strategy:
+          - Iterate over .lua files in stplug-in
+          - For each: skip if checked within last MANIFEST_STALENESS_HOURS
+          - Run check_manifest_staleness(appid) — uses api.steamcmd.net
+          - If stale and not in cooldown and not already-known-stale, notify
+          - Cap to 8 checks per poll cycle (avoid spending the budget all at once)
+        """
+        import json as _json
+        try:
+            from steamtools import check_manifest_staleness, _stplug_dir
+        except Exception as exc:
+            _logger.warn(f"Sentinel: staleness check unavailable: {exc}")
+            return
+
+        stplug = _stplug_dir()
+        if not stplug or not os.path.isdir(stplug):
+            return
+
+        now_ts = int(time.time())
+        recheck_after = MANIFEST_STALENESS_HOURS * 3600
+        checked_this_cycle = 0
+        max_per_cycle = 8
+
+        try:
+            lua_files = sorted(os.listdir(stplug))
+        except OSError:
+            return
+
+        for fname in lua_files:
+            if checked_this_cycle >= max_per_cycle:
+                break
+            if not fname.endswith(".lua"):
+                continue
+            stem = fname[:-4]
+            if not stem.isdigit():
+                continue
+            appid = int(stem)
+
+            # Throttle per-game
+            last_check = self.state.last_staleness_check.get(appid, 0)
+            if (now_ts - last_check) < recheck_after:
+                continue
+
+            # Skip ignored games
+            if appid in self.config.per_game_ignore:
+                continue
+
+            # Run the check
+            try:
+                result_json = check_manifest_staleness(appid)
+                result = _json.loads(result_json)
+            except Exception as exc:
+                _logger.warn(f"Sentinel: staleness check {appid} failed: {exc}")
+                continue
+            finally:
+                self.state.last_staleness_check[appid] = now_ts
+                checked_this_cycle += 1
+
+            if not result.get("success"):
+                continue
+            results_list = result.get("results", [])
+            if not results_list:
+                continue
+            game_data = results_list[0]
+            is_stale = bool(game_data.get("stale"))
+
+            # Update known_stale set
+            if is_stale:
+                self.state.known_stale.add(appid)
+            else:
+                self.state.known_stale.discard(appid)
+                continue  # nothing to notify
+
+            # Respect cooldown
+            if not self.notification_mgr.can_notify_game(appid, self.state):
+                continue
+
+            # Build notification
+            stale_depots = [
+                d for d in game_data.get("depots", []) if d.get("stale")
+            ]
+            game_name = self._lookup_game_name(appid) or f"AppID {appid}"
+            msg = (
+                f"Manifest outdated for {len(stale_depots)} depot"
+                + ("s" if len(stale_depots) != 1 else "")
+                + ". Game may have been patched on Steam."
+            )
+
+            if self.config.notification_style == "toast":
+                self.notification_mgr.send_toast(
+                    f"[LuaTools] Stale: {game_name}",
+                    msg,
+                    timeout_sec=10,
+                )
+
+            self.notification_mgr.mark_notified(appid, self.state)
+            _logger.log(
+                f"Sentinel: notified about stale manifests for {appid} "
+                f"({len(stale_depots)} depot(s))"
+            )
+
+        if checked_this_cycle > 0:
+            _logger.log(
+                f"Sentinel: staleness check completed "
+                f"({checked_this_cycle} game(s) checked this cycle)"
+            )
+
     def _lookup_game_name(self, appid: int) -> str:
         for lib_path in _scan_all_steam_libraries(self.steam_path):
             appmanifest_path = os.path.join(lib_path, "steamapps", f"appmanifest_{appid}.acf")
@@ -517,10 +640,16 @@ class SentinelDaemon:
                 _logger.warn("Sentinel: already running")
                 return False
 
+            # Guard against a previous thread that has not fully exited yet.
+            if self.thread is not None and self.thread.is_alive():
+                _logger.warn("Sentinel: previous thread still alive, refusing to start a duplicate")
+                return False
+
             if not self.config.enabled:
                 _logger.log("Sentinel: disabled by config")
                 return False
 
+            self._stop_event.clear()
             self.running = True
             self.thread = threading.Thread(target=self._run_loop, daemon=True)
             self.thread.start()
@@ -528,22 +657,47 @@ class SentinelDaemon:
             return True
 
     def stop(self) -> None:
-        """Stop the Sentinel daemon."""
-        self.running = False
-        if self.thread:
-            self.thread.join(timeout=5)
+        """Stop the Sentinel daemon.
+
+        Signals the stop event so the run loop wakes immediately from its
+        sleep instead of waiting out the full poll interval.
+        """
+        with self.lock:
+            if not self.running and (self.thread is None or not self.thread.is_alive()):
+                return
+            self.running = False
+            self._stop_event.set()
+            thread = self.thread
+
+        # Join outside the lock so the loop's final _save_state() can proceed.
+        if thread is not None:
+            thread.join(timeout=max(10, self.config.poll_interval + 2))
+            if thread.is_alive():
+                _logger.warn("Sentinel: thread did not exit within join timeout")
+            else:
+                self.thread = None
+
         self._save_state()
         _logger.log("Sentinel: daemon stopped")
 
     def _run_loop(self) -> None:
-        """Main background loop (runs in thread)."""
-        while self.running:
+        """Main background loop (runs in thread).
+
+        Uses an interruptible Event.wait() instead of time.sleep() so that
+        stop() can break the loop out of its idle period immediately.
+        """
+        while self.running and not self._stop_event.is_set():
             try:
                 self._poll_cycle()
             except Exception as exc:
                 _logger.error(f"Sentinel: unhandled exception in _run_loop: {exc}")
 
-            time.sleep(self.config.poll_interval)
+            # Interruptible sleep: returns True the moment stop() sets the event.
+            interval = max(5, int(self.config.poll_interval))
+            if self._stop_event.wait(timeout=interval):
+                break
+
+        _logger.log("Sentinel: run loop exited")
 
 # ──────────────────────────────────────────────────────────────────────────
 # Public API (exposed via main.py for Millennium)

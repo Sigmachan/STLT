@@ -59,7 +59,7 @@ SETTINGS_GROUPS: List[SettingGroup] = [
                 label="Theme",
                 option_type="select",
                 description="Choose the color theme for LuaTools interface.",
-                default="original",
+                default="ingria",
                 metadata={"dynamicChoices": "themes"},
             ),
             SettingOption(
