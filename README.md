@@ -21,6 +21,10 @@
 
 ---
 
+> 💳 **Support Development:** Help keep this project alive → [Donate via CloudTips](https://pay.cloudtips.ru/p/855260b6)
+
+---
+
 ## 📖 Choose Your Language
 
 <details>
@@ -1298,8 +1302,6 @@ Ohjelmisto ei sisällä poliittisia tunnuksia, lippukuvioita eikä iskulauseita.
 **Found a bug?** [Open an issue](https://github.com/Sigmachan/STLT/issues)  
 **Have a feature request?** [Suggest it](https://github.com/Sigmachan/STLT/discussions)  
 **Want to contribute?** Check [CLAUDE.md](CLAUDE.md) for architecture and coding patterns  
-
-**💳 Donate:** [CloudTips](https://pay.cloudtips.ru/p/855260b6) — help fund development
 
 ## 📞 Status & Roadmap
 
