@@ -1143,7 +1143,7 @@
 
             const modal = document.createElement('div');
             const colors = getThemeColors();
-            modal.style.cssText = `position:relative;background:${colors.modalBg};color:${colors.text};border:2px solid ${colors.border};border-radius:8px;width:420px;max-width:95vw;padding:14px 18px;box-shadow:0 20px 60px rgba(0,0,0,.8), 0 0 0 1px ${colors.shadowRgba};animation:slideUp 0.1s ease-out;`;
+            modal.style.cssText = `position:relative;background:${colors.modalBg};color:${colors.text};border:2px solid ${colors.border};border-radius:8px;width:420px;max-width:95vw;max-height:80vh;overflow-y:auto;padding:14px 18px;box-shadow:0 20px 60px rgba(0,0,0,.8), 0 0 0 1px ${colors.shadowRgba};animation:slideUp 0.1s ease-out;`;
 
             const header = document.createElement('div');
             header.style.cssText = `display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;padding-bottom:8px;border-bottom:2px solid ${colors.borderRgba};`;

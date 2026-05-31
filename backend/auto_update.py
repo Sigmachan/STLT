@@ -170,7 +170,7 @@ def _download_and_extract_update(zip_url: str, pending_zip: str) -> bool:
     client = ensure_http_client("AutoUpdate: download")
     try:
         logger.log(f"AutoUpdate: Downloading {zip_url} -> {pending_zip}")
-        with client.stream("GET", zip_url, follow_redirects=True) as response:
+        with client.stream("GET", zip_url, follow_redirects=True, timeout=120) as response:
             logger.log(f"AutoUpdate: Update download response: status={response.status_code}")
             response.raise_for_status()
             with open(pending_zip, "wb") as output:

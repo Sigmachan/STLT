@@ -1547,7 +1547,10 @@ class Plugin:
             pass
 
         logger.log("unloading")
-        close_http_client("InitApis")
+        try:
+            close_http_client("InitApis")
+        except Exception:
+            pass
 
 
 plugin = Plugin()

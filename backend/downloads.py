@@ -823,12 +823,24 @@ def _download_zip_for_app(appid: int):
     _connection_refused_count = [0]  # mutable cell for closure
 
     def _is_conn_refused(exc: Exception) -> bool:
-        """WinError 10061 / ECONNREFUSED  --  local network unavailable."""
-        msg = str(exc)
-        return (
-            "10061" in msg
-            or "connection refused" in msg.lower()
-            or "actively refused" in msg.lower()
+        """Network unavailable: connection refused, timeout, unreachable, SSL errors."""
+        msg = str(exc).lower()
+        return any(
+            kw in msg
+            for kw in [
+                "10061",
+                "connection refused",
+                "actively refused",
+                "connect timeout",
+                "read timeout",
+                "timed out",
+                "network is unreachable",
+                "no route to host",
+                "connection reset",
+                "broken pipe",
+                "ssl",
+                "certificate",
+            ]
         )
 
     def try_source(name, fn):
