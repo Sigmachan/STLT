@@ -27,8 +27,14 @@
 
 ## 📖 Choose Your Language
 
-<details>
-<summary><strong>English</strong></summary>
+| 🇺🇸 English | 🇷🇺 Русский | 🇺🇦 Українська | 🇧🇾 Беларуская | 🇫🇮 Suomi |
+|---|---|---|---|---|
+| Default, click to read | Русский перевод | Український переклад | Беларускі переклад | Suomalainen käännös |
+
+---
+
+<details open>
+<summary><strong>🇺🇸 English</strong></summary>
 
 **Version 9.0.7**
 
@@ -280,7 +286,7 @@ The plugin contains no political symbols, no flag patterns, no slogans. The defa
 </details>
 
 <details>
-<summary><strong>Русский</strong></summary>
+<summary><strong>🇷🇺 Русский</strong></summary>
 
 **Версия 9.0.7**
 
@@ -538,7 +544,7 @@ GetSentinelService() / InstallSentinelService()
 </details>
 
 <details>
-<summary><strong>Українська</strong></summary>
+<summary><strong>🇺🇦 Українська</strong></summary>
 
 **Версія 9.0.7**
 
@@ -790,7 +796,7 @@ GetSentinelService() / InstallSentinelService()
 </details>
 
 <details>
-<summary><strong>Беларуская</strong></summary>
+<summary><strong>🇧🇾 Беларуская</strong></summary>
 
 **Версія 9.0.7**
 
@@ -1042,7 +1048,7 @@ GetSentinelService() / InstallSentinelService()
 </details>
 
 <details>
-<summary><strong>Suomi</strong></summary>
+<summary><strong>🇫🇮 Suomi</strong></summary>
 
 **Versio 9.0.7**
 
