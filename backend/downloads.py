@@ -22,8 +22,7 @@ from config import (
     WEBKIT_DIR_NAME,
     WEB_UI_ICON_FILE,
     WEB_UI_JS_FILE,
-    GITHUB_API_PROXY_PREFIX,
-    GITHUB_RAW_PROXY_PREFIX,
+    GITHUB_PROXY_BASE,
 )
 from http_client import ensure_http_client
 import httpx
@@ -62,23 +61,38 @@ def _safe_remove(path: str, retries: int = 3, delay: float = 0.2) -> None:
 
 
 # ── GitHub proxy helpers (for regions where GitHub is blocked) ───────
-def _try_with_github_proxy(url: str, fn, proxy_prefix: str) -> Any:
+def _try_with_github_proxy(url: str, fn, proxy_base: str) -> Any:
     """Try fn(url), then retry with a proxy URL if it fails.
     
     fn should accept a single URL argument and return a value or raise.
-    proxy_prefix is the base URL of the proxy (e.g., GITHUB_API_PROXY_PREFIX).
+    proxy_base is the base URL of the proxy (e.g., GITHUB_PROXY_BASE).
+    
+    For api.github.com URLs:
+        https://api.github.com/repos/x/y/zipball/z
+        -> https://luatools.vercel.app/api/github/repos/x/y/zipball/z
+    
+    For raw.githubusercontent.com URLs:
+        https://raw.githubusercontent.com/x/y/main/file.lua
+        -> https://luatools.vercel.app/api/raw/x/y/main/file.lua
     """
     try:
         return fn(url)
     except Exception as primary_err:
         if "github" not in url.lower():
             raise  # not a GitHub URL, re-raise immediately
-        # Build proxy URL: strip the scheme+host from the GitHub URL
-        # e.g., https://api.github.com/repos/x/y/zipball/z
-        #  -> https://luatools.vercel.app/api/github/repos/x/y/zipball/z
-        path = url.split("://", 1)[1]  # "api.github.com/repos/x/y/zipball/z"
-        path = "/" + path.split("/", 1)[1]  # "/repos/x/y/zipball/z"
-        proxy_url = proxy_prefix + path
+        
+        # Build proxy URL based on GitHub host
+        if "api.github.com" in url:
+            # api.github.com/repos/... -> /api/github/repos/...
+            path = url.split("api.github.com", 1)[-1]
+            proxy_url = proxy_base + path
+        elif "raw.githubusercontent.com" in url:
+            # raw.githubusercontent.com/owner/repo/... -> /api/raw/owner/repo/...
+            path = url.split("raw.githubusercontent.com", 1)[-1]
+            proxy_url = proxy_base.replace("/api/github", "/api/raw") + path
+        else:
+            raise  # unknown GitHub host, re-raise
+        
         logger.warn(f"LuaTools: GitHub direct failed ({primary_err}), trying proxy {proxy_url}")
         try:
             return fn(proxy_url)
@@ -1055,7 +1069,7 @@ def _download_zip_for_app(appid: int):
                     raw = _try_with_github_proxy(
                         zip_url,
                         lambda url: stream_to_bytes(url, headers=gh_headers, timeout=30),
-                        GITHUB_API_PROXY_PREFIX,
+                        GITHUB_PROXY_BASE,
                     )
                     if raw and raw[:2] == b"PK":
                         with open(dest_path, "wb") as fh:
@@ -1070,7 +1084,7 @@ def _download_zip_for_app(appid: int):
                     tree_resp = _try_with_github_proxy(
                         tree_url,
                         lambda url: client.get(url, headers=gh_headers, timeout=10),
-                        GITHUB_API_PROXY_PREFIX,
+                        GITHUB_PROXY_BASE,
                     )
                     if not tree_resp.is_success:
                         continue
@@ -1083,7 +1097,7 @@ def _download_zip_for_app(appid: int):
                     raw = _try_with_github_proxy(
                         raw_url,
                         lambda url: stream_to_bytes(url, timeout=15),
-                        GITHUB_RAW_PROXY_PREFIX,
+                        GITHUB_PROXY_BASE,
                     )
                     if raw and len(raw) > 50:
                         if not save_raw_to_dest(raw):
@@ -1247,7 +1261,7 @@ def _download_zip_for_app(appid: int):
         raw = _try_with_github_proxy(
             url,
             lambda u: stream_to_bytes(u),
-            GITHUB_RAW_PROXY_PREFIX,
+            GITHUB_PROXY_BASE,
         )
         if not raw:
             return False

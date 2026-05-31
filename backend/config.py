@@ -17,9 +17,10 @@ DEFAULT_HEADERS = {
 API_MANIFEST_URL = "https://raw.githubusercontent.com/madoiscool/lt_api_links/refs/heads/main/load_free_manifest_apis"
 API_MANIFEST_PROXY_URL = "https://luatools.vercel.app/load_free_manifest_apis"
 
-# GitHub proxy endpoints (for regions where GitHub is blocked, e.g., Russia)
-GITHUB_API_PROXY_PREFIX = "https://luatools.vercel.app/api/github"  # /api/github/repos/{owner}/{repo}/...
-GITHUB_RAW_PROXY_PREFIX = "https://luatools.vercel.app/api/raw"    # /api/raw/{owner}/{repo}/...
+# GitHub proxy endpoint (for regions where GitHub is blocked, e.g., Russia)
+# The Vercel proxy at /api/github mirrors GitHub API paths
+# e.g., /api/github/repos/{owner}/{repo}/zipball/{branch}
+GITHUB_PROXY_BASE = "https://luatools.vercel.app/api/github"
 API_JSON_FILE = "api.json"
 
 UPDATE_CONFIG_FILE = "update.json"
