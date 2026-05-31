@@ -1,5 +1,28 @@
 # LuaTools Ultimate
 
+![Version](https://img.shields.io/badge/version-9.1.0--dev9-blue) ![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20Linux-green) ![License](https://img.shields.io/badge/license-GPL--like-orange) ![Millennium](https://img.shields.io/badge/Millennium-3.0-purple)
+
+---
+
+## ✨ Key Features
+
+| 📥 **Nine-Source Chain** | 🔧 **Auto Repair** | 👥 **Multi-Account** | 🛡️ **Denuvo Support** | 👁️ **Background Watch** |
+|---|---|---|---|---|
+| Manifest fetching from distributed sources | Depot cache integrity + corruption recovery | Switch accounts without restart | Tokeer launcher config for protected games | Sentinel daemon monitors your library |
+
+---
+
+## 🚀 Quick Start
+
+**Windows:** `install.ps1` (creates venv + installs deps)  
+**Linux:** `install.sh` (same as Windows, different shell)  
+**After install:** Restart Steam or Millennium, navigate to plugin UI  
+**Documentation:** [Read in your language below](https://github.com/Sigmachan/STLT/blob/main/CLAUDE.md) • [Sentinel design](https://github.com/Sigmachan/STLT/blob/main/SENTINEL_v9.md)
+
+---
+
+## 📖 Choose Your Language
+
 <details>
 <summary><strong>English</strong></summary>
 
@@ -1267,4 +1290,26 @@ Ohjelmisto ei sisällä poliittisia tunnuksia, lippukuvioita eikä iskulauseita.
 ---
 
 </details>
+
+---
+
+## 🤝 Contribute & Support
+
+**Found a bug?** [Open an issue](https://github.com/Sigmachan/STLT/issues)  
+**Have a feature request?** [Suggest it](https://github.com/Sigmachan/STLT/discussions)  
+**Want to contribute?** Check [CLAUDE.md](CLAUDE.md) for architecture and coding patterns  
+
+**💳 Donate:** [CloudTips](https://pay.cloudtips.ru/p/855260b6) — help fund development
+
+## 📞 Status & Roadmap
+
+- **v9.1.0-dev9:** Windows + Linux, Millennium 3.0, Python 3.11+ backend, Sentinel daemon stable
+- **Known issues:** Check GitHub Issues for latest
+- **Next:** Expanded source chain, profile system enhancements, cross-machine sync improvements
+
+---
+
+**Made with ❤️ in Ingria. Contributed by the free software community.**
+
+*LuaTools Ultimate — bringing game automation to Steam.*
 
