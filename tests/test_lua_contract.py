@@ -94,7 +94,7 @@ class TestLuaContract(unittest.TestCase):
         lines must never come back. Guards against re-introducing the bug by
         detecting the dangerous PATTERN — a 64-hex-key presence check whose
         failure branch skips (continue) the line — not merely the word 'stub'."""
-        src = open(os.path.join(_BACKEND, "downloads.py"), encoding="utf-8").read()
+        with open(os.path.join(_BACKEND, "downloads.py"), encoding="utf-8") as _f: src = _f.read()
         # The original bug: `if not key_match: ... continue` inside the lua
         # line loop, where key_match tested for a 64-char depot key. That
         # skipped every keyless ownership/DLC line.
@@ -114,7 +114,7 @@ class TestLuaContract(unittest.TestCase):
     def test_manifesthub_does_not_finalize_empty_keys(self):
         """The ManifestHub API path must NOT finalize an empty-key activation;
         it should defer to a keyed source (return False after caching)."""
-        src = open(os.path.join(_BACKEND, "downloads.py"), encoding="utf-8").read()
+        with open(os.path.join(_BACKEND, "downloads.py"), encoding="utf-8") as _f: src = _f.read()
         # The empty-key builder may still exist for caching, but it must be
         # followed by a 'defer to keyed source' return, not finalize(). (The
         # phrase is split across f-string lines in the source, so match a

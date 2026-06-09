@@ -42,8 +42,8 @@ def _detect_steam_path_fallback() -> str:
     return ""
 
 
-def _cmp_version_parts(version: str) -> tuple[int, ...]:
-    """Return a numeric tuple for simple dotted version strings."""
+def _cmp_version_parts(version: str) -> tuple:
+    """Numeric tuple for simple dotted version strings (for cmp_version)."""
     return tuple(int(part) for part in re.findall(r"\d+", str(version))) or (0,)
 
 
@@ -76,20 +76,23 @@ class _MillenniumFallback:
 
     @staticmethod
     def get_install_path() -> str:
+        # Best-effort: the fallback has no separate Millennium dir, so report Steam's.
         return _MillenniumFallback.steam_path()
 
     @staticmethod
-    def remove_browser_module(_module_id: str) -> None:
-        return None
+    def remove_browser_module(_module_id) -> bool:
+        # Real API returns bool (True on success); nothing to remove in standalone.
+        return True
 
     @staticmethod
     def cmp_version(left: str, right: str) -> int:
-        left_parts = _cmp_version_parts(left)
-        right_parts = _cmp_version_parts(right)
-        max_len = max(len(left_parts), len(right_parts))
-        left_padded = left_parts + (0,) * (max_len - len(left_parts))
-        right_padded = right_parts + (0,) * (max_len - len(right_parts))
-        return (left_padded > right_padded) - (left_padded < right_padded)
+        """Match Millennium's contract: -1 if left<right, 0 if equal, 1 if left>right."""
+        lp = _cmp_version_parts(left)
+        rp = _cmp_version_parts(right)
+        n = max(len(lp), len(rp))
+        lp = lp + (0,) * (n - len(lp))
+        rp = rp + (0,) * (n - len(rp))
+        return (lp > rp) - (lp < rp)
 
     @staticmethod
     def is_plugin_enabled(_name: str) -> bool:
@@ -146,18 +149,10 @@ def install_standalone_shims() -> None:
 
     if "Millennium" not in sys.modules:
         mod = types.ModuleType("Millennium")
-        for attr in (
-            "steam_path",
-            "add_browser_js",
-            "add_browser_css",
-            "ready",
-            "call_frontend_method",
-            "version",
-            "get_install_path",
-            "remove_browser_module",
-            "cmp_version",
-            "is_plugin_enabled",
-        ):
+        for attr in ("steam_path", "add_browser_js", "add_browser_css",
+                     "ready", "call_frontend_method", "version",
+                     "get_install_path", "remove_browser_module",
+                     "cmp_version", "is_plugin_enabled"):
             setattr(mod, attr, getattr(Millennium, attr))
         sys.modules["Millennium"] = mod
 

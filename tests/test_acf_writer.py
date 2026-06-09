@@ -41,7 +41,7 @@ class TestAcfWriterDownloadModel(unittest.TestCase):
 
     def assertFalseIfExistsHasState4(self, acf_file):
         if os.path.isfile(acf_file):
-            content = open(acf_file, encoding="utf-8").read()
+            with open(acf_file, encoding="utf-8") as _f: content = _f.read()
             self.assertNotIn('"StateFlags"\t\t"4"', content)
             self.assertNotIn('"StateFlags": "4"', content)
             # Generic guard regardless of formatting

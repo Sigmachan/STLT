@@ -34,7 +34,7 @@ class TestLiveApply(unittest.TestCase):
         stubs.steam_running = True
         self.tmp = tempfile.mkdtemp()
         self.cfg = os.path.join(self.tmp, "config.yaml")
-        open(self.cfg, "w").write("PlayNotOwnedGames: yes\n")
+        with open(self.cfg, "w") as _f: _f.write("PlayNotOwnedGames: yes\n")
         stubs.slssteam_config_path = self.cfg
         stubs.slssteam_config_dir = self.tmp
         import importlib as il, slssteam_config
@@ -63,7 +63,7 @@ class TestLiveApply(unittest.TestCase):
         self.assertFalse(res["success"])
 
     def test_play_not_owned_off_warns_but_still_fires(self):
-        open(self.cfg, "w").write("PlayNotOwnedGames: no\n")
+        with open(self.cfg, "w") as _f: _f.write("PlayNotOwnedGames: no\n")
         import importlib as il, slssteam_config
         il.reload(slssteam_config)
         res = self.la.trigger_steam_install(570)
@@ -123,7 +123,7 @@ class TestAutoFinalize(unittest.TestCase):
         stubs.steam_running = True
         self.tmp = tempfile.mkdtemp()
         self.cfg = os.path.join(self.tmp, "config.yaml")
-        open(self.cfg, "w").write("PlayNotOwnedGames: yes\n")
+        with open(self.cfg, "w") as _f: _f.write("PlayNotOwnedGames: yes\n")
         stubs.slssteam_config_path = self.cfg
         stubs.slssteam_config_dir = self.tmp
         import importlib as il, slssteam_config
@@ -143,7 +143,7 @@ class TestAutoFinalize(unittest.TestCase):
         self.assertEqual(res["autoFixed"], [])
 
     def test_auto_enables_play_not_owned(self):
-        open(self.cfg, "w").write("PlayNotOwnedGames: no\n")
+        with open(self.cfg, "w") as _f: _f.write("PlayNotOwnedGames: no\n")
         import importlib as il, slssteam_config
         il.reload(slssteam_config)
         res = self.la.auto_finalize_activation(570)

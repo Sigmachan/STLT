@@ -55,7 +55,7 @@ class TestHealth(unittest.TestCase):
         self.assertTrue(len(rep["checks"]) >= 8)
 
     def test_play_not_owned_off_is_blocking_with_fix(self):
-        open(self.cfg, "w").write("PlayNotOwnedGames: no\n")
+        with open(self.cfg, "w") as _f: _f.write("PlayNotOwnedGames: no\n")
         rep = self.health.run_health_check()
         pno = [c for c in rep["checks"] if c["id"] == "play_not_owned"][0]
         self.assertEqual(pno["status"], "fail")
@@ -67,7 +67,7 @@ class TestHealth(unittest.TestCase):
         self.assertEqual(rep["overall"], "fail")
 
     def test_play_not_owned_on_is_ok(self):
-        open(self.cfg, "w").write("PlayNotOwnedGames: yes\n")
+        with open(self.cfg, "w") as _f: _f.write("PlayNotOwnedGames: yes\n")
         rep = self.health.run_health_check()
         pno = [c for c in rep["checks"] if c["id"] == "play_not_owned"][0]
         self.assertEqual(pno["status"], "ok")
@@ -89,7 +89,7 @@ class TestHealth(unittest.TestCase):
     def test_per_app_audit_runs(self):
         # Drop a keyed lua and confirm per-app checks appear.
         lua = os.path.join(stubs.stplugin_dir, "590830.lua")
-        open(lua, "w").write('addappid(590830)\naddappid(590831,0,"%s")\n' % ("a" * 64))
+        with open(lua, "w") as _f: _f.write('addappid(590830)\naddappid(590831,0,"%s")\n' % ("a" * 64))
         rep = self.health.run_health_check(appid=590830)
         ids = [c["id"] for c in rep["checks"]]
         self.assertIn("app_ownership", ids)
@@ -101,7 +101,7 @@ class TestHealth(unittest.TestCase):
         # A lua with ONLY keyed lines (no base addappid) — the exact bug the
         # stub filter caused — must be flagged.
         lua = os.path.join(stubs.stplugin_dir, "999999.lua")
-        open(lua, "w").write('addappid(999998,0,"%s")\n' % ("b" * 64))
+        with open(lua, "w") as _f: _f.write('addappid(999998,0,"%s")\n' % ("b" * 64))
         rep = self.health.run_health_check(appid=999999)
         own = [c for c in rep["checks"] if c["id"] == "app_ownership"][0]
         self.assertEqual(own["status"], "fail")

@@ -2,8 +2,8 @@
     "$schema": "https://raw.githubusercontent.com/SteamClientHomebrew/Millennium/main/src/sys/plugin-schema.json",
     "name": "luatools",
     "common_name": "LuaTools Ultimate",
-    "description": "LuaTools Ultimate 10.2.3 \u2014 auto-update now targets your fork (Sigmachan/STLT) and is downgrade-proof: it updates only when a GitHub release is strictly newer than the running build and has an attached STLT.zip asset; older/equal/garbage tags never apply. Removed the upstream vercel proxy fallbacks that could pull a different codebase. 86 tests.",
-    "version": "10.2.3",
+    "description": "LuaTools Ultimate 10.2.4 \u2014 resource-leak cleanup + Millennium 3.0 fallback completeness. Fixed unclosed file handles in shipped code (accela_launcher, downloads) and across the test suite; strict ResourceWarning run is now clean. The standalone Millennium fallback now exposes the full documented 3.0 API surface (cmp_version/get_install_path/is_plugin_enabled/remove_browser_module) with a regression test. 90 tests.",
+    "version": "10.2.4",
     "backendType": "lua",
     "include": [
         "public"

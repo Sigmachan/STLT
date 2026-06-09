@@ -29,7 +29,7 @@ class TestSetupAssistant(unittest.TestCase):
         self.cfgdir = os.path.join(self.steam, "SLSsteam")
         os.makedirs(self.cfgdir, exist_ok=True)
         self.cfg = os.path.join(self.cfgdir, "config.yaml")
-        open(self.cfg, "w").write("PlayNotOwnedGames: yes\n")
+        with open(self.cfg, "w") as _f: _f.write("PlayNotOwnedGames: yes\n")
         stubs.slssteam_config_path = self.cfg
         stubs.slssteam_config_dir = self.cfgdir
         stubs.stplugin_dir = os.path.join(self.steam, "config", "stplug-in")
@@ -67,7 +67,7 @@ class TestSetupAssistant(unittest.TestCase):
         self.assertEqual(s["blockers"], [])
 
     def test_play_not_owned_is_autofixable(self):
-        open(self.cfg, "w").write("PlayNotOwnedGames: no\n")
+        with open(self.cfg, "w") as _f: _f.write("PlayNotOwnedGames: no\n")
         import importlib, slssteam_config
         importlib.reload(slssteam_config)
         s = self.sa.get_setup_state()
@@ -85,7 +85,7 @@ class TestSetupAssistant(unittest.TestCase):
         self.assertNotIn("activation_tool", [f["id"] for f in s["autoFixable"]])
 
     def test_run_setup_enables_play_not_owned(self):
-        open(self.cfg, "w").write("PlayNotOwnedGames: no\n")
+        with open(self.cfg, "w") as _f: _f.write("PlayNotOwnedGames: no\n")
         import importlib, slssteam_config
         importlib.reload(slssteam_config)
         res = self.sa.run_setup()
@@ -97,7 +97,7 @@ class TestSetupAssistant(unittest.TestCase):
 
     def test_self_heal_noop_before_setup_seen(self):
         # First run (no marker): self-heal must not touch anything.
-        open(self.cfg, "w").write("PlayNotOwnedGames: no\n")
+        with open(self.cfg, "w") as _f: _f.write("PlayNotOwnedGames: no\n")
         import importlib, slssteam_config
         importlib.reload(slssteam_config)
         res = self.sa.self_heal()
@@ -109,7 +109,7 @@ class TestSetupAssistant(unittest.TestCase):
 
     def test_self_heal_reenables_regressed_play_not_owned(self):
         self.sa.mark_setup_seen()
-        open(self.cfg, "w").write("PlayNotOwnedGames: no\n")  # regressed
+        with open(self.cfg, "w") as _f: _f.write("PlayNotOwnedGames: no\n")  # regressed
         import importlib, slssteam_config
         importlib.reload(slssteam_config)
         res = self.sa.self_heal()

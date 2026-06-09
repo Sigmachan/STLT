@@ -48,7 +48,8 @@ def get_launcher_path() -> Optional[str]:
     try:
         ov = _override_file()
         if os.path.isfile(ov):
-            p = open(ov, encoding="utf-8").read().strip()
+            with open(ov, encoding="utf-8") as f:
+                p = f.read().strip()
             if p and os.path.exists(p):
                 return p
     except Exception:

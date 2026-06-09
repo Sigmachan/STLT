@@ -940,7 +940,8 @@ def _download_zip_for_app(appid: int):
             import shutil
             shutil.copy2(local_zip, dest_path)
         elif os.path.isfile(local_lua):
-            wrap_lua_in_zip(open(local_lua, "r", encoding="utf-8").read())
+            with open(local_lua, "r", encoding="utf-8") as _lua_f:
+                wrap_lua_in_zip(_lua_f.read())
         else:
             return False
         finalize("Local Folder")

@@ -1,57 +1,63 @@
-"""Millennium 3.0 API surface guard for the standalone bridge fallback."""
+"""Regression test for the standalone Millennium fallback API surface.
 
+Millennium 3.0 documents these on the runtime module; our standalone bridge
+fallback must expose the same surface so backend code that targets the 3.0
+contract never hits an AttributeError when running outside Millennium. (Per the
+Millennium 3.0 review — keeps the stub semantics from silently drifting.)
+"""
+
+import importlib
 import sys
 import unittest
 
 import _bootstrap  # noqa: F401
 
+_DOCUMENTED = (
+    "steam_path", "add_browser_js", "add_browser_css", "ready",
+    "call_frontend_method", "version", "get_install_path",
+    "remove_browser_module", "cmp_version", "is_plugin_enabled",
+)
 
-class TestPlatformBridgeApi(unittest.TestCase):
+
+class TestPlatformBridgeFallbackAPI(unittest.TestCase):
 
     def setUp(self):
-        import importlib
+        # Force the FALLBACK path (no real Millennium / PluginUtils present).
+        sys.modules.pop("Millennium", None)
+        sys.modules.pop("PluginUtils", None)
         import platform_bridge
-        importlib.reload(platform_bridge)
-        self.pb = platform_bridge
+        self.pb = importlib.reload(platform_bridge)
+        self.F = self.pb._MillenniumFallback
 
-    def test_fallback_exposes_documented_millennium_3_api(self):
-        expected = {
-            "steam_path",
-            "add_browser_js",
-            "add_browser_css",
-            "ready",
-            "call_frontend_method",
-            "version",
-            "get_install_path",
-            "remove_browser_module",
-            "cmp_version",
-            "is_plugin_enabled",
-        }
-        missing = sorted(name for name in expected if not hasattr(self.pb.Millennium, name))
-        self.assertEqual(missing, [], "standalone bridge fallback missing Millennium 3.0 API: " + ", ".join(missing))
-
-    def test_install_standalone_shims_registers_the_full_api_surface(self):
-        # Reset sys.modules so the shim can repopulate the fallback cleanly.
+    def tearDown(self):
         sys.modules.pop("Millennium", None)
         sys.modules.pop("PluginUtils", None)
 
-        self.pb.install_standalone_shims()
+    def test_full_documented_surface_present(self):
+        for m in _DOCUMENTED:
+            self.assertTrue(hasattr(self.F, m),
+                            f"standalone fallback is missing documented API: {m}")
 
-        mod = sys.modules["Millennium"]
-        expected = {
-            "steam_path",
-            "add_browser_js",
-            "add_browser_css",
-            "ready",
-            "call_frontend_method",
-            "version",
-            "get_install_path",
-            "remove_browser_module",
-            "cmp_version",
-            "is_plugin_enabled",
-        }
-        missing = sorted(name for name in expected if not hasattr(mod, name))
-        self.assertEqual(missing, [], "shim did not register full Millennium 3.0 API surface: " + ", ".join(missing))
+    def test_cmp_version_returns_minus_one_zero_one(self):
+        self.assertEqual(self.F.cmp_version("1.0.0", "2.0.0"), -1)
+        self.assertEqual(self.F.cmp_version("2.0.0", "2.0.0"), 0)
+        self.assertEqual(self.F.cmp_version("2.1.0", "2.0.9"), 1)
+        # uneven lengths normalize correctly
+        self.assertEqual(self.F.cmp_version("2", "2.0.0"), 0)
+
+    def test_is_plugin_enabled_and_remove_module_contract(self):
+        self.assertIs(self.F.is_plugin_enabled("whatever"), True)
+        # real API returns a bool; fallback must too (not None)
+        self.assertIs(self.F.remove_browser_module(123), True)
+
+    def test_standalone_shims_register_full_surface(self):
+        sys.modules.pop("Millennium", None)
+        self.pb.install_standalone_shims()
+        mod = sys.modules.get("Millennium")
+        self.assertIsNotNone(mod)
+        for attr in _DOCUMENTED:
+            self.assertTrue(hasattr(mod, attr),
+                            f"standalone shim did not register: {attr}")
 
 
 if __name__ == "__main__":

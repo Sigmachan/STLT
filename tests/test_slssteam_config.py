@@ -27,36 +27,36 @@ class TestSlssteamConfig(unittest.TestCase):
 
     def test_config_exists_false_then_true(self):
         self.assertFalse(self.sc.config_exists())
-        open(self.cfg, "w").write("PlayNotOwnedGames: no\n")
+        with open(self.cfg, "w") as _f: _f.write("PlayNotOwnedGames: no\n")
         self.assertTrue(self.sc.config_exists())
 
     def test_play_not_owned_roundtrip(self):
-        open(self.cfg, "w").write("PlayNotOwnedGames: no\nSafeMode: no\n")
+        with open(self.cfg, "w") as _f: _f.write("PlayNotOwnedGames: no\nSafeMode: no\n")
         self.assertFalse(self.sc.is_play_not_owned_enabled())
         self.sc.set_play_not_owned(True)
         self.assertTrue(self.sc.is_play_not_owned_enabled())
         # written as a YAML boolean literal
-        body = open(self.cfg, encoding="utf-8").read()
+        with open(self.cfg, encoding="utf-8") as _f: body = _f.read()
         self.assertRegex(body, r"PlayNotOwnedGames:\s*(yes|true|True)")
 
     def test_set_play_not_owned_creates_missing_keys(self):
-        open(self.cfg, "w").write("SafeMode: no\n")
+        with open(self.cfg, "w") as _f: _f.write("SafeMode: no\n")
         self.sc.set_play_not_owned(True)
         self.assertTrue(self.sc.is_play_not_owned_enabled())
 
     def test_safe_mode_read(self):
-        open(self.cfg, "w").write("SafeMode: yes\n")
+        with open(self.cfg, "w") as _f: _f.write("SafeMode: yes\n")
         self.assertTrue(self.sc.is_safe_mode_enabled())
 
     def test_get_value_default(self):
-        open(self.cfg, "w").write("Foo: bar\n")
+        with open(self.cfg, "w") as _f: _f.write("Foo: bar\n")
         self.assertEqual(self.sc.get_value("Foo"), "bar")
         self.assertEqual(self.sc.get_value("Missing", "fallback"), "fallback")
 
     def test_preserves_other_keys_on_write(self):
-        open(self.cfg, "w").write("PlayNotOwnedGames: no\nVersion: 1.2.3\nSafeMode: no\n")
+        with open(self.cfg, "w") as _f: _f.write("PlayNotOwnedGames: no\nVersion: 1.2.3\nSafeMode: no\n")
         self.sc.set_play_not_owned(True)
-        body = open(self.cfg, encoding="utf-8").read()
+        with open(self.cfg, encoding="utf-8") as _f: body = _f.read()
         self.assertIn("1.2.3", body, "writing one key must not lose others")
 
 

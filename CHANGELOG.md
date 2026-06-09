@@ -1,5 +1,24 @@
 # Changelog
 
+## 10.2.4 — resource-leak cleanup + Millennium 3.0 fallback surface
+
+Addresses an external Millennium 3.0 review (both findings verified against the
+code before acting):
+
+- **Unclosed file handles (real defects).** Reproduced with
+  `python3 -W error::ResourceWarning`. Fixed the two shipped-code leaks
+  (`accela_launcher.py` launcher-path read, `downloads.py` local-lua read) and
+  the 31 unclosed `open()` one-liners across the test suite. The strict
+  ResourceWarning run is now **clean** (was: many `unclosed file` traces).
+- **Standalone fallback API surface.** The Millennium fallback (used in bridge
+  mode) now exposes the full documented 3.0 surface — `cmp_version` (proper
+  -1/0/1), `get_install_path`, `is_plugin_enabled`, `remove_browser_module`
+  (returns the real `bool`) — and the standalone shim registers them. Note:
+  nothing in the backend currently calls these, so this is contract
+  future-proofing, not a live-bug fix.
+- Regression test (`test_platform_bridge_api`) pins the surface + `cmp_version`
+  semantics so the stubs can't drift. Suite: **90 green.**
+
 ## 10.2.3 — auto-update points at your fork, downgrade-proof
 
 Re-enabled the self-updater against **Sigmachan/STLT** (your repo) with hard

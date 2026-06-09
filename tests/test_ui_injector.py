@@ -25,7 +25,7 @@ class TestUiInjector(unittest.TestCase):
         self.root = os.path.join(self.tmp, ".local", "share", "Steam")
         os.makedirs(os.path.join(self.root, "steamui"), exist_ok=True)
         self.index = os.path.join(self.root, "steamui", "index.html")
-        open(self.index, "w", encoding="utf-8").write(SAMPLE_INDEX)
+        with open(self.index, "w", encoding="utf-8") as _f: _f.write(SAMPLE_INDEX)
         # Point the injector's candidate roots at our fake root only
         self.ui._candidate_steam_roots = lambda: [self.root]
 
@@ -39,15 +39,15 @@ class TestUiInjector(unittest.TestCase):
     def test_injects_marker_block(self):
         res = self._inject()
         self.assertEqual(res["roots_patched"], 1)
-        html = open(self.index, encoding="utf-8").read()
+        with open(self.index, encoding="utf-8") as _f: html = _f.read()
         self.assertIn(self.ui.MARKER_START, html)
         self.assertIn(self.ui.MARKER_END, html)
 
     def test_injection_is_idempotent(self):
         self._inject()
-        html1 = open(self.index, encoding="utf-8").read()
+        with open(self.index, encoding="utf-8") as _f: html1 = _f.read()
         res2 = self._inject()
-        html2 = open(self.index, encoding="utf-8").read()
+        with open(self.index, encoding="utf-8") as _f: html2 = _f.read()
         # No duplicate marker blocks
         self.assertEqual(html2.count(self.ui.MARKER_START), 1,
                          "re-injection must not duplicate the block")
@@ -58,17 +58,17 @@ class TestUiInjector(unittest.TestCase):
     def test_remove_is_clean(self):
         self._inject()
         self.ui.remove_ui_injection()
-        html = open(self.index, encoding="utf-8").read()
+        with open(self.index, encoding="utf-8") as _f: html = _f.read()
         self.assertNotIn(self.ui.MARKER_START, html)
         self.assertNotIn(self.ui.MARKER_END, html)
         # Original markup intact
         self.assertIn("<div id='root'></div>", html)
 
     def test_inject_then_remove_restores_original(self):
-        original = open(self.index, encoding="utf-8").read()
+        with open(self.index, encoding="utf-8") as _f: original = _f.read()
         self._inject()
         self.ui.remove_ui_injection()
-        restored = open(self.index, encoding="utf-8").read()
+        with open(self.index, encoding="utf-8") as _f: restored = _f.read()
         self.assertEqual(restored.strip(), original.strip(),
                          "inject+remove should round-trip to the original page")
 
