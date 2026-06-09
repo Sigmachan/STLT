@@ -1,3 +1,10 @@
+// === LuaTools Ultimate idempotency guard ===
+// Safe against double-injection (Millennium native load + ui_injector self-heal).
+if (window.__LUATOOLS_ULTIMATE_LOADED__) {
+    console.log('[LuaTools] already loaded in this context; skipping duplicate injection');
+} else {
+    window.__LUATOOLS_ULTIMATE_LOADED__ = true;
+// === begin original luatools.js ===
 // LuaTools button injection (standalone plugin)
 
 // ============================================
@@ -1275,6 +1282,53 @@
             modal.appendChild(body);
             overlay.appendChild(modal);
             document.body.appendChild(overlay);
+
+            // ── Progressive disclosure (10.0): collapse the long SteamTools list
+            // behind one "Advanced tools" toggle so the menu breathes. Keeps the
+            // few primary actions visible; hides the rest until asked for. Pure
+            // DOM visibility (the flex column reflows natively) — if anything
+            // throws, the full menu is left intact.
+            try {
+                var _advancedBtns = [sentinelBtn, repairAllBtn, acctTransferBtn,
+                    keyVaultBtn, acctSwitchBtn, tokeerBtn, syncBtn, migratorBtn,
+                    achieveBtn, gameToolsBtn, cacheInfoBtn, folderStatsBtn,
+                    conflictsBtn, libScanBtn, backupBtn, customApisBtn,
+                    compatToolBtn].filter(Boolean);
+                if (_advancedBtns.length) {
+                    _advancedBtns.forEach(function (b) {
+                        b.dataset._od = b.style.display || 'flex';
+                        b.style.display = 'none';
+                    });
+                    var _advToggle = document.createElement('a');
+                    _advToggle.href = '#';
+                    _advToggle.id = 'lt-advanced-toggle';
+                    _advToggle.style.cssText = (healthScanBtn ? healthScanBtn.style.cssText : '');
+                    _advToggle.style.opacity = '0.85';
+                    var _advOpen = false;
+                    function _advLabel() {
+                        return '<i class="fa-solid ' + (_advOpen ? 'fa-chevron-up' : 'fa-sliders') + '" style="font-size:16px;"></i>'
+                            + '<span style="text-align:center;">'
+                            + (_advOpen ? lt('Hide advanced tools')
+                                : lt('Advanced tools') + ' (' + _advancedBtns.length + ')')
+                            + '</span>';
+                    }
+                    _advToggle.innerHTML = _advLabel();
+                    _advToggle.onclick = function (e) {
+                        e.preventDefault();
+                        _advOpen = !_advOpen;
+                        _advancedBtns.forEach(function (b) {
+                            b.style.display = _advOpen ? (b.dataset._od || 'flex') : 'none';
+                        });
+                        _advToggle.innerHTML = _advLabel();
+                        if (window.GamepadNav) { try { window.GamepadNav.scanElements(); } catch (_) { } }
+                    };
+                    if (sentinelBtn && sentinelBtn.parentNode) {
+                        sentinelBtn.parentNode.insertBefore(_advToggle, sentinelBtn);
+                    } else {
+                        container.appendChild(_advToggle);
+                    }
+                }
+            } catch (_) { }
 
             // Re-scan elements for gamepad navigation
             setTimeout(function () {
@@ -3334,32 +3388,215 @@
 
     function showSteamToolsHealthScan() {
         _stOverlayShell('🩺 Health Scan', function (body, ov, colors) {
-            body.innerHTML = '<div style="text-align:center;padding:10px;color:' + colors.accent + '"><i class="fa-solid fa-spinner fa-spin" style="font-size:16px;"></i><div style="margin-top:8px;">Scanning all scripts…</div></div>';
-            Millennium.callServerMethod('luatools', 'BatchHealthScan', { contentScriptQuery: '' })
-                .then(function (res) {
-                    var p = typeof res === 'string' ? JSON.parse(res) : res;
-                    if (!p.success) { body.innerHTML = '<div style="color:#f44336;">Error: ' + (p.error || 'Unknown') + '</div>'; return; }
-                    var t = p.totals || {};
-                    var summary = '<div style="display:flex;gap:10px;margin-bottom:10px;justify-content:center;">'
-                        + '<div style="text-align:center;"><div style="font-size:15px;font-weight:700;color:#4caf50;">' + (t.healthy || 0) + '</div><div style="font-size:11px;opacity:0.7;">Healthy</div></div>'
-                        + '<div style="text-align:center;"><div style="font-size:15px;font-weight:700;color:#ff9800;">' + (t.warnings || 0) + '</div><div style="font-size:11px;opacity:0.7;">Warnings</div></div>'
-                        + '<div style="text-align:center;"><div style="font-size:15px;font-weight:700;color:#f44336;">' + (t.errors || 0) + '</div><div style="font-size:11px;opacity:0.7;">Errors</div></div>'
-                        + '<div style="text-align:center;"><div style="font-size:15px;font-weight:700;color:' + colors.accent + ';">' + (t.total || 0) + '</div><div style="font-size:11px;opacity:0.7;">Total</div></div>'
+            // Two stacked sections: SYSTEM SETUP (environment prerequisites, with
+            // one-click fixes) on top, then the per-game script audit below.
+            var envBox = document.createElement('div');
+            envBox.style.cssText = 'margin-bottom:14px;';
+            var gamesBox = document.createElement('div');
+            body.appendChild(envBox);
+            body.appendChild(gamesBox);
+
+            // status -> coloured dot (ok/warn/fail/info/skip)
+            function dot(status) {
+                var c = status === 'ok' ? '#4caf50'
+                    : status === 'warn' ? '#ff9800'
+                    : status === 'fail' ? '#f44336'
+                    : '#777';
+                return '<span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:' + c + ';margin-right:7px;flex:0 0 auto;"></span>';
+            }
+            function esc(s) {
+                return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+            }
+
+            // ── SYSTEM SETUP section (GetLinuxHealthReport) ──────────────
+            function renderEnv() {
+                envBox.innerHTML = '<div style="text-align:center;padding:8px;color:' + colors.accent + ';"><i class="fa-solid fa-spinner fa-spin"></i> Checking system setup…</div>';
+                Millennium.callServerMethod('luatools', 'GetLinuxHealthReport', { appid: 0, contentScriptQuery: '' })
+                    .then(function (res) {
+                        var p = typeof res === 'string' ? JSON.parse(res) : res;
+                        if (!p || !p.success) {
+                            envBox.innerHTML = '';
+                            return;
+                        }
+                        if (p.platform === 'windows') {
+                            envBox.innerHTML = '<div style="font-size:12px;opacity:0.6;padding:6px;">System-setup checks are Linux-only (Windows uses SteamTools natively).</div>';
+                            return;
+                        }
+                        var overall = p.overall || 'ok';
+                        var headColor = overall === 'fail' ? '#f44336' : overall === 'warn' ? '#ff9800' : '#4caf50';
+                        var headIcon = overall === 'fail' ? '✗' : overall === 'warn' ? '!' : '✓';
+                        var html = '<div style="font-weight:700;font-size:13px;color:' + colors.accent + ';margin-bottom:8px;">⚙️ System setup</div>';
+                        html += '<div style="display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:6px;margin-bottom:8px;'
+                            + 'background:rgba(' + (overall === 'fail' ? '244,67,54' : overall === 'warn' ? '255,152,0' : '76,175,80') + ',0.08);'
+                            + 'border:1px solid rgba(' + (overall === 'fail' ? '244,67,54' : overall === 'warn' ? '255,152,0' : '76,175,80') + ',0.3);">'
+                            + '<span style="font-size:15px;color:' + headColor + ';font-weight:800;">' + headIcon + '</span>'
+                            + '<span style="font-size:12px;">' + esc(p.summary || '') + '</span></div>';
+
+                        // Checks (skip pure 'info'/'skip' that carry no detail of interest? show all but muted)
+                        html += '<div style="display:flex;flex-direction:column;gap:3px;margin-bottom:6px;">';
+                        (p.checks || []).forEach(function (c) {
+                            if (c.status === 'skip') return; // hide N/A rows to reduce noise
+                            var muted = (c.status === 'info') ? 'opacity:0.7;' : '';
+                            html += '<div style="display:flex;align-items:flex-start;font-size:12px;line-height:1.4;' + muted + '">'
+                                + dot(c.status)
+                                + '<span style="flex:1;"><b style="font-weight:600;">' + esc(c.label) + '</b>'
+                                + (c.detail ? ' <span style="opacity:0.75;">— ' + esc(c.detail) + '</span>' : '')
+                                + '</span></div>';
+                        });
+                        html += '</div>';
+                        envBox.innerHTML = html;
+
+                        // One-click fixes
+                        var fixes = p.fixes || [];
+                        if (fixes.length) {
+                            var fixWrap = document.createElement('div');
+                            fixWrap.style.cssText = 'display:flex;flex-direction:column;gap:6px;margin-top:4px;';
+                            fixes.forEach(function (fx) {
+                                if (fx.ipc) {
+                                    var btn = document.createElement('a');
+                                    btn.href = '#';
+                                    btn.style.cssText = 'display:inline-block;padding:7px 12px;background:rgba(102,192,244,0.15);border:1px solid rgba(102,192,244,0.45);border-radius:6px;color:#66c0f4;font-size:12px;font-weight:600;text-decoration:none;cursor:pointer;';
+                                    btn.innerHTML = '<i class="fa-solid fa-wrench" style="margin-right:6px;"></i>' + esc(fx.label);
+                                    btn.onclick = function (e) {
+                                        e.preventDefault();
+                                        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin" style="margin-right:6px;"></i>Applying…';
+                                        var args = Object.assign({ contentScriptQuery: '' }, fx.args || {});
+                                        Millennium.callServerMethod('luatools', fx.ipc, args)
+                                            .then(function () { renderEnv(); })
+                                            .catch(function (err) {
+                                                btn.innerHTML = '<i class="fa-solid fa-triangle-exclamation" style="margin-right:6px;"></i>Failed: ' + esc(err);
+                                            });
+                                    };
+                                    fixWrap.appendChild(btn);
+                                } else if (fx.args && fx.args.command) {
+                                    // Shell command — never auto-run; show copyable.
+                                    var cmdWrap = document.createElement('div');
+                                    cmdWrap.style.cssText = 'font-size:11px;color:#aaa;background:rgba(0,0,0,0.25);border:1px solid ' + colors.borderRgba + ';border-radius:6px;padding:8px 10px;';
+                                    cmdWrap.innerHTML = '<div style="margin-bottom:4px;">' + esc(fx.label) + ' — run in a terminal:</div>'
+                                        + '<code style="display:block;color:#9fe2a0;font-family:monospace;word-break:break-all;user-select:all;">' + esc(fx.args.command) + '</code>';
+                                    fixWrap.appendChild(cmdWrap);
+                                }
+                            });
+                            envBox.appendChild(fixWrap);
+                        }
+                    })
+                    .catch(function () { envBox.innerHTML = ''; });
+            }
+
+            // ── PER-GAME script audit (existing BatchHealthScan) ─────────
+            function renderGames() {
+                gamesBox.innerHTML = '<div style="text-align:center;padding:10px;color:' + colors.accent + '"><i class="fa-solid fa-spinner fa-spin" style="font-size:16px;"></i><div style="margin-top:8px;">Scanning all scripts…</div></div>';
+                Millennium.callServerMethod('luatools', 'BatchHealthScan', { contentScriptQuery: '' })
+                    .then(function (res) {
+                        var p = typeof res === 'string' ? JSON.parse(res) : res;
+                        if (!p.success) { gamesBox.innerHTML = '<div style="color:#f44336;">Error: ' + (p.error || 'Unknown') + '</div>'; return; }
+                        var t = p.totals || {};
+                        var heading = '<div style="font-weight:700;font-size:13px;color:' + colors.accent + ';margin:4px 0 8px;">🎮 Per-game scripts</div>';
+                        var summary = '<div style="display:flex;gap:10px;margin-bottom:10px;justify-content:center;">'
+                            + '<div style="text-align:center;"><div style="font-size:15px;font-weight:700;color:#4caf50;">' + (t.healthy || 0) + '</div><div style="font-size:11px;opacity:0.7;">Healthy</div></div>'
+                            + '<div style="text-align:center;"><div style="font-size:15px;font-weight:700;color:#ff9800;">' + (t.warnings || 0) + '</div><div style="font-size:11px;opacity:0.7;">Warnings</div></div>'
+                            + '<div style="text-align:center;"><div style="font-size:15px;font-weight:700;color:#f44336;">' + (t.errors || 0) + '</div><div style="font-size:11px;opacity:0.7;">Errors</div></div>'
+                            + '<div style="text-align:center;"><div style="font-size:15px;font-weight:700;color:' + colors.accent + ';">' + (t.total || 0) + '</div><div style="font-size:11px;opacity:0.7;">Total</div></div>'
+                            + '</div>';
+                        var rows = '';
+                        (p.results || []).forEach(function (r) {
+                            var issues = (r.issues || []).join(', ') || 'OK';
+                            var name = r.gameName || ('AppID ' + r.appid);
+                            rows += '<tr><td style="padding:4px 8px;">' + _stStatusBadge(r.status) + '</td>'
+                                + '<td style="padding:4px 8px;font-weight:500;">' + r.appid + '</td>'
+                                + '<td style="padding:4px 8px;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="' + name + '">' + name + '</td>'
+                                + '<td style="padding:4px 8px;font-size:12px;opacity:0.8;">' + issues + '</td></tr>';
+                        });
+                        gamesBox.innerHTML = heading + summary + '<div style="max-height:38vh;overflow-y:auto;"><table style="width:100%;border-collapse:collapse;font-size:13px;">'
+                            + '<thead><tr style="border-bottom:1px solid ' + colors.borderRgba + ';"><th></th><th style="text-align:left;padding:4px 8px;">ID</th><th style="text-align:left;padding:4px 8px;">Game</th><th style="text-align:left;padding:4px 8px;">Issues</th></tr></thead>'
+                            + '<tbody>' + rows + '</tbody></table></div>';
+                    })
+                    .catch(function (err) { gamesBox.innerHTML = '<div style="color:#f44336;">Failed: ' + err + '</div>'; });
+            }
+
+            renderEnv();
+            renderGames();
+        });
+    }
+
+    function showSetupAssistant(preState) {
+        _stOverlayShell('👋 ' + lt('Welcome to LuaTools'), function (body, ov, colors) {
+            function esc(s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+            function done() {
+                try { Millennium.callServerMethod('luatools', 'MarkSetupSeen', { contentScriptQuery: '' }); } catch (_) { }
+                try { ov.remove(); } catch (_) { }
+            }
+            function primaryBtn(label, onClick) {
+                var b = document.createElement('a');
+                b.href = '#';
+                b.style.cssText = 'display:block;text-align:center;margin-top:12px;padding:10px;background:rgba(102,192,244,0.18);border:1px solid rgba(102,192,244,0.55);border-radius:7px;color:#66c0f4;font-weight:700;font-size:13px;text-decoration:none;cursor:pointer;';
+                b.innerHTML = label;
+                b.onclick = function (e) { e.preventDefault(); onClick(b); };
+                body.appendChild(b);
+                return b;
+            }
+            function linkBtn(label, onClick) {
+                var b = document.createElement('a');
+                b.href = '#';
+                b.style.cssText = 'display:block;text-align:center;margin-top:8px;color:' + colors.accent + ';font-size:12px;opacity:0.8;text-decoration:none;cursor:pointer;';
+                b.textContent = label;
+                b.onclick = function (e) { e.preventDefault(); onClick(b); };
+                body.appendChild(b);
+                return b;
+            }
+            function allSet() {
+                body.innerHTML = '<div style="text-align:center;padding:14px;">'
+                    + '<div style="font-size:36px;color:#4caf50;line-height:1;">✓</div>'
+                    + '<div style="margin-top:10px;font-size:15px;font-weight:700;">' + lt("You're all set") + '</div>'
+                    + '<div style="margin-top:6px;font-size:12px;opacity:0.7;">' + lt('Activate a game and it downloads — no restart needed.') + '</div></div>';
+                primaryBtn(lt('Done'), done);
+            }
+            function render(s) {
+                body.innerHTML = '';
+                if (!s || !s.success) { body.innerHTML = '<div style="opacity:0.8;">' + lt('Could not check setup right now.') + '</div>'; primaryBtn(lt('Done'), done); return; }
+                if (s.platform === 'windows' || (s.ready && !(s.blockers || []).length)) { allSet(); return; }
+
+                var autofix = s.autoFixable || [];
+                var blockers = s.blockers || [];
+                var html = '<div style="font-size:12px;opacity:0.85;margin-bottom:10px;">' + lt('A couple of things to get downloads working:') + '</div>';
+                autofix.forEach(function (f) {
+                    html += '<div style="display:flex;align-items:center;gap:8px;font-size:12px;margin:4px 0;">'
+                        + '<span style="color:#66c0f4;">○</span><span>' + esc(f.label) + ' <span style="opacity:0.6;">— ' + lt('I can do this for you') + '</span></span></div>';
+                });
+                blockers.forEach(function (b) {
+                    html += '<div style="font-size:12px;margin:6px 0;padding:8px;background:rgba(255,152,0,0.08);border:1px solid rgba(255,152,0,0.3);border-radius:6px;">'
+                        + '<div style="color:#ff9800;font-weight:600;">⚠ ' + esc(b.label) + '</div>'
+                        + (b.detail ? '<div style="opacity:0.8;margin-top:3px;">' + esc(b.detail) + '</div>' : '')
+                        + (b.command ? '<code style="display:block;margin-top:5px;color:#9fe2a0;font-family:monospace;word-break:break-all;user-select:all;">' + esc(b.command) + '</code>' : '')
                         + '</div>';
-                    var rows = '';
-                    (p.results || []).forEach(function (r) {
-                        var issues = (r.issues || []).join(', ') || 'OK';
-                        var name = r.gameName || ('AppID ' + r.appid);
-                        rows += '<tr><td style="padding:4px 8px;">' + _stStatusBadge(r.status) + '</td>'
-                            + '<td style="padding:4px 8px;font-weight:500;">' + r.appid + '</td>'
-                            + '<td style="padding:4px 8px;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="' + name + '">' + name + '</td>'
-                            + '<td style="padding:4px 8px;font-size:12px;opacity:0.8;">' + issues + '</td></tr>';
+                });
+                body.innerHTML = html;
+
+                if (autofix.length) {
+                    primaryBtn('<i class="fa-solid fa-wand-magic-sparkles" style="margin-right:6px;"></i>' + lt('Set it up for me'), function (btn) {
+                        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin" style="margin-right:6px;"></i>' + lt('Setting up…');
+                        Millennium.callServerMethod('luatools', 'RunSetup', { contentScriptQuery: '' })
+                            .then(function (raw) { render(typeof raw === 'string' ? JSON.parse(raw) : raw); })
+                            .catch(function () { render(s); });
                     });
-                    body.innerHTML = summary + '<div style="max-height:45vh;overflow-y:auto;"><table style="width:100%;border-collapse:collapse;font-size:13px;">'
-                        + '<thead><tr style="border-bottom:1px solid ' + colors.borderRgba + ';"><th></th><th style="text-align:left;padding:4px 8px;">ID</th><th style="text-align:left;padding:4px 8px;">Game</th><th style="text-align:left;padding:4px 8px;">Issues</th></tr></thead>'
-                        + '<tbody>' + rows + '</tbody></table></div>';
-                })
-                .catch(function (err) { body.innerHTML = '<div style="color:#f44336;">Failed: ' + err + '</div>'; });
+                }
+                if (blockers.length) {
+                    linkBtn(lt('Check again'), function () {
+                        Millennium.callServerMethod('luatools', 'GetSetupState', { contentScriptQuery: '' })
+                            .then(function (raw) { render(typeof raw === 'string' ? JSON.parse(raw) : raw); })
+                            .catch(function () { });
+                    });
+                }
+                linkBtn(lt('Dismiss'), done);
+            }
+
+            if (preState) { render(preState); }
+            else {
+                body.innerHTML = '<div style="text-align:center;padding:10px;color:' + colors.accent + ';"><i class="fa-solid fa-spinner fa-spin"></i> ' + lt('Checking setup…') + '</div>';
+                Millennium.callServerMethod('luatools', 'GetSetupState', { contentScriptQuery: '' })
+                    .then(function (raw) { render(typeof raw === 'string' ? JSON.parse(raw) : raw); })
+                    .catch(function () { render(null); });
+            }
         });
     }
 
@@ -8185,6 +8422,45 @@
 
                 // Now translations are ready — insert the button in the correct language
                 addLuaToolsButton();
+
+                // First-run setup assistant: once per session, show the "You're all
+                // set" flow if this is a first run or something is blocking downloads.
+                try {
+                    if (!window.__LUATOOLS_SETUP_CHECKED__) {
+                        window.__LUATOOLS_SETUP_CHECKED__ = true;
+                        setTimeout(function () {
+                            try {
+                                Millennium.callServerMethod('luatools', 'SelfHeal', { contentScriptQuery: '' })
+                                    .then(function (raw) {
+                                        try {
+                                            var h = typeof raw === 'string' ? JSON.parse(raw) : raw;
+                                            if (h && h.healed && h.healed.length) {
+                                                showLuaToolsToast('🛠 ' + lt('Fixed automatically') + ': ' + h.healed.join(', '), 5000, 'success');
+                                            }
+                                        } catch (_) { }
+                                    })
+                                    .catch(function () { })
+                                    .then(function () {
+                                        return Millennium.callServerMethod('luatools', 'GetSetupState', { contentScriptQuery: '' });
+                                    })
+                                    .then(function (raw) {
+                                        var s = typeof raw === 'string' ? JSON.parse(raw) : raw;
+                                        if (s && s.success) {
+                                            if (!s.ready) {
+                                                // Something to guide — show the assistant.
+                                                showSetupAssistant(s);
+                                            } else if (s.firstRun) {
+                                                // Already good on first run — don't interrupt;
+                                                // just remember so we don't check again.
+                                                try { Millennium.callServerMethod('luatools', 'MarkSetupSeen', { contentScriptQuery: '' }); } catch (_) { }
+                                            }
+                                        }
+                                    })
+                                    .catch(function () { });
+                            } catch (_) { }
+                        }, 1800);
+                    }
+                } catch (_) { }
             }).catch(function (_) {
                 // Settings failed, still insert button (English fallback)
                 addLuaToolsButton();
@@ -8667,6 +8943,63 @@
                         if (st.status === 'done') {
                             try { LuaToolsMods.fireHook('onDownloadComplete', { appid: runState.appid, source: st.api || '' }); } catch (_) { }
                             try { showLuaToolsToast('✅ ' + (st.api || 'Downloaded') + ' — AppID ' + runState.appid, 4000, 'success'); } catch (_) { }
+                            // AUTO-PILOT (spine): runs on EVERY completion so the
+                            // download starts whether or not the popup is open. Renders
+                            // into the popup when visible; otherwise reports via toast.
+                            (function () {
+                                if (runState._autoFinalizedFor === runState.appid) return;
+                                runState._autoFinalizedFor = runState.appid;
+                                var _finalizeAppid = runState.appid;
+                                var _host = (status && status.parentElement) ? status.parentElement : null;
+                                var autoEl = null;
+                                if (_host && !_host.querySelector('.luatools-autofinalize')) {
+                                    autoEl = document.createElement('div');
+                                    autoEl.className = 'luatools-autofinalize';
+                                    autoEl.style.cssText = 'margin-top:10px;font-size:12px;line-height:1.5;';
+                                    autoEl.innerHTML = '<i class="fa-solid fa-spinner fa-spin" style="margin-right:6px;color:#66c0f4;"></i>' + lt('Setting up & starting download…');
+                                    _host.appendChild(autoEl);
+                                }
+                                function _showManualButton() {
+                                    if (!autoEl) return;
+                                    autoEl.innerHTML = '';
+                                    var dlBtn = document.createElement('a');
+                                    dlBtn.href = '#';
+                                    dlBtn.style.cssText = 'display:inline-block;padding:8px 14px;background:rgba(102,192,244,0.15);border:1px solid rgba(102,192,244,0.5);border-radius:6px;color:#66c0f4;font-size:12px;font-weight:600;text-decoration:none;cursor:pointer;';
+                                    dlBtn.innerHTML = '<i class="fa-solid fa-download" style="margin-right:6px;"></i>' + lt('Start download (no restart)');
+                                    dlBtn.onclick = function (e) {
+                                        e.preventDefault();
+                                        dlBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin" style="margin-right:6px;"></i>' + lt('Starting…');
+                                        Millennium.callServerMethod('luatools', 'StartDownloadNoRestart', { appid: _finalizeAppid, contentScriptQuery: '' })
+                                            .then(function (raw) {
+                                                var r = typeof raw === 'string' ? JSON.parse(raw) : raw;
+                                                var ok = r && r.success;
+                                                try { showLuaToolsToast((ok ? '⬇ ' : '⚠ ') + ((r && r.message) || 'Triggered'), 6000, ok ? 'success' : 'info'); } catch (_) { }
+                                                dlBtn.innerHTML = '<i class="fa-solid fa-check" style="margin-right:6px;"></i>' + lt('Download requested');
+                                            })
+                                            .catch(function (err) { try { showLuaToolsToast('⚠ ' + err, 5000, 'info'); } catch (_) { } });
+                                    };
+                                    autoEl.appendChild(dlBtn);
+                                }
+                                Millennium.callServerMethod('luatools', 'AutoFinalizeActivation', { appid: _finalizeAppid, contentScriptQuery: '' })
+                                    .then(function (raw) {
+                                        var r = typeof raw === 'string' ? JSON.parse(raw) : raw;
+                                        if (!r || r.skipped) { _showManualButton(); return; }
+                                        if (r.success && r.downloadTriggered) {
+                                            var fixed = (r.autoFixed && r.autoFixed.length)
+                                                ? '<div style="opacity:0.75;margin-top:3px;">✓ ' + r.autoFixed.join('; ') + '</div>' : '';
+                                            if (autoEl) autoEl.innerHTML = '<span style="color:#4caf50;font-weight:600;"><i class="fa-solid fa-download" style="margin-right:6px;"></i>' + lt('Downloading — no restart needed') + '</span>' + fixed;
+                                            else { try { showLuaToolsToast('⬇ ' + (r.message || lt('Downloading — no restart needed')), 6000, 'success'); } catch (_) { } }
+                                        } else if (r.blocker) {
+                                            if (autoEl) autoEl.innerHTML = '<span style="color:#ff9800;"><i class="fa-solid fa-triangle-exclamation" style="margin-right:6px;"></i>' + (r.message || lt('Action needed')) + '</span>';
+                                            else { try { showLuaToolsToast('⚠ ' + (r.message || lt('Action needed')), 7000, 'info'); } catch (_) { } }
+                                        } else {
+                                            if (autoEl) { autoEl.innerHTML = '<span style="opacity:0.85;">' + (r.message || '') + '</span>'; _showManualButton(); }
+                                            else { try { showLuaToolsToast((r.message || 'Done'), 5000, 'info'); } catch (_) { } }
+                                        }
+                                    })
+                                    .catch(function () { _showManualButton(); });
+                            })();
+
                             // Update popup if visible
                             if (status) {
                                 const result = st.contentCheckResult;
@@ -9178,3 +9511,5 @@
     // It already handles all overlay types automatically using OVERLAY_SELECTOR_STRING
 
 })();
+// === end LuaTools Ultimate idempotency guard ===
+}

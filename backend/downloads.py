@@ -622,33 +622,25 @@ def _process_and_install_lua(appid: int, zip_path: str) -> None:
             text = data.decode("utf-8", errors="replace")
 
         processed_lines = []
-        stub_count = 0
         for line in text.splitlines(True):
             stripped = line.strip()
             # Skip commented lines as-is
             if stripped.startswith("--"):
                 processed_lines.append(line)
                 continue
-            # Comment out active setManifestid() calls
+            # Comment out active setManifestid() calls (use latest manifest)
             if re.match(r"^\s*setManifestid\(", line):
                 line = re.sub(r"^(\s*)", r"\1--", line)
                 processed_lines.append(line)
                 continue
-            # Filter out stub addappid() lines that have no depot key
-            # Valid: addappid(depot, manifest_id, "key") or addappid(depot, 0, "key")
-            # Stub:  addappid(appid) — useless placeholder, no decryption key
-            m = re.match(r"^\s*addappid\s*\(", stripped)
-            if m:
-                # Check if this line contains a quoted depot key (64-char hex)
-                key_match = re.search(r',\s*"[a-fA-F0-9]{64}"', line)
-                if not key_match:
-                    # Stub line — no depot key, skip it
-                    stub_count += 1
-                    continue
+            # KEEP every addappid() line. Keyless addappid(appid) lines are NOT
+            # stubs — addappid(<gameid>) registers ownership of the game, and
+            # keyless addappid(<dlcid>) lines unlock DLCs. Stripping them makes
+            # SLSsteam never grant ownership, so Steam won't download. Only the
+            # depot lines additionally carry a 64-char key for decryption; both
+            # kinds are required. (Compare working 2483190.lua / 590830.lua.)
             processed_lines.append(line)
         processed_text = "".join(processed_lines)
-        if stub_count:
-            logger.log(f"LuaTools: Filtered {stub_count} stub addappid() line(s) without depot keys for {appid}")
 
         _set_download_state(appid, {"status": "installing"})
         dest_file = os.path.join(target_dir, f"{appid}.lua")

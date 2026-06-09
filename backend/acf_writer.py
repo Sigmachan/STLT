@@ -396,23 +396,32 @@ def remove_decryption_keys_from_config(steam_path: str,
 def activate_game_on_linux(appid: int, depot_keys: List[Tuple[str, str]],
                           manifest_ids: Optional[Dict[str, str]] = None,
                           installdir: str = "") -> Dict[str, Any]:
-    """Complete Linux activation: ACF + config.vdf + workshop patch.
+    """Linux activation for the DOWNLOAD model.
 
-    This is the main entry point for post-download activation on Linux.
-    It handles everything Steam needs to recognize and download the game.
+    Ownership is granted by the .lua (via SLSsteam/ACCELA). This function's
+    job is only to make sure Steam can DECRYPT what it downloads, by injecting
+    the depot decryption keys into config.vdf. Steam then downloads the files
+    through its normal Install flow.
+
+    We intentionally DO NOT write a 'fully installed' ACF (StateFlags=4): that
+    tells Steam the game is already present and makes it skip the download,
+    which is the "manifest template, no download" bug. (write_acf() is kept in
+    this module for the alternative 'files already on disk' model, but is not
+    called here.)
 
     Args:
         appid: Steam AppID
         depot_keys: List of (depot_id, decryption_key) tuples
-        manifest_ids: Optional dict of depot_id -> manifest_id
-        installdir: Optional custom install directory name
+        manifest_ids: Optional dict of depot_id -> manifest_id (unused in the
+            download model; Steam fetches the latest manifest via SLSsteam)
+        installdir: Optional custom install directory name (unused here)
 
     Returns:
         Dict with success status and details of what was done
     """
     result = {
         "success": False,
-        "acf_written": False,
+        "acf_written": False,   # intentionally false: no fake-installed ACF
         "keys_added": 0,
         "workshop_patched": False,
         "errors": [],
@@ -423,27 +432,38 @@ def activate_game_on_linux(appid: int, depot_keys: List[Tuple[str, str]],
         result["errors"].append("Steam path not found")
         return result
 
-    # 1. Write ACF
+    # 1. Add depot decryption keys to config.vdf so Steam can decrypt the
+    #    depots it downloads. (This is the load-bearing step for the download
+    #    model — without keys, downloaded depots stay encrypted.)
+    #
+    #    IMPORTANT: config.vdf is only persisted when Steam exits — writing it
+    #    while Steam is running gets clobbered on exit. And when SLSsteam/ACCELA
+    #    is injected, it supplies these keys from the .lua at runtime, so the
+    #    config.vdf copy is belt-and-suspenders. So: only write when Steam is
+    #    closed; otherwise rely on the .lua (SLSsteam reads it live).
     try:
-        result["acf_written"] = write_acf(appid, steam_path,
-                                          manifest_override=manifest_ids,
-                                          installdir=installdir)
-    except Exception as exc:
-        result["errors"].append(f"ACF write failed: {exc}")
+        steam_running = False
+        try:
+            from steam_version import _steam_is_running
+            steam_running = _steam_is_running()
+        except Exception:
+            steam_running = False
 
-    # 2. Add keys to config.vdf
-    try:
-        result["keys_added"] = add_decryption_keys_to_config(steam_path, depot_keys)
+        if steam_running:
+            logger.log(
+                "LuaTools: Steam is running — skipping config.vdf key injection "
+                "(SLSsteam reads depot keys from the .lua at runtime; a write now "
+                "would be lost when Steam exits)."
+            )
+            result["keys_added"] = 0
+        else:
+            result["keys_added"] = add_decryption_keys_to_config(steam_path, depot_keys)
     except Exception as exc:
         result["errors"].append(f"Config VDF write failed: {exc}")
 
-    # 3. Patch workshop ACF
-    try:
-        result["workshop_patched"] = patch_workshop_acf(appid, steam_path)
-    except Exception as exc:
-        result["errors"].append(f"Workshop ACF patch failed: {exc}")
-
-    # 4. Patch any existing ACF error state
+    # 2. If Steam already created an ACF for this app that is stuck in an error
+    #    state (e.g. a prior failed attempt), clear the error so the download
+    #    can proceed. We never create a 'fully installed' ACF ourselves.
     acf_file = os.path.join(steam_path, "steamapps", f"appmanifest_{appid}.acf")
     if os.path.isfile(acf_file):
         try:
@@ -451,5 +471,8 @@ def activate_game_on_linux(appid: int, depot_keys: List[Tuple[str, str]],
         except Exception as exc:
             result["errors"].append(f"ACF error state patch failed: {exc}")
 
-    result["success"] = result["acf_written"] and result["keys_added"] > 0
+    # Success means we did our job without errors. When Steam is running we
+    # deliberately skip the config.vdf write (the .lua handles keys via
+    # SLSsteam), and that is NOT a failure.
+    result["success"] = len(result["errors"]) == 0
     return result

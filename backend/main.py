@@ -1420,6 +1420,183 @@ def GetLinuxPlatformStatus(contentScriptQuery: str = "") -> str:
         return _json.dumps({"success": False, "error": str(exc)})
 
 
+def GetSlssteamConfig(contentScriptQuery: str = "") -> str:
+    """Report SLSsteam config.yaml state, especially PlayNotOwnedGames.
+
+    PlayNotOwnedGames MUST be enabled for unowned games to activate/download
+    at all — so the frontend can surface a warning + one-click fix when it's
+    off. (Ported from upstream LuaToolsLinux.)
+    """
+    import json as _json
+    if sys.platform.startswith("win"):
+        return _json.dumps({"success": True, "platform": "windows",
+                            "applicable": False})
+    try:
+        import slssteam_config as _sc
+        return _json.dumps({
+            "success": True,
+            "applicable": True,
+            "configExists": _sc.config_exists(),
+            "playNotOwnedGames": _sc.is_play_not_owned_enabled(),
+            "safeMode": _sc.is_safe_mode_enabled(),
+            "version": _sc.get_sls_version(),
+        })
+    except Exception as exc:
+        return _json.dumps({"success": False, "error": str(exc)})
+
+
+def SetSlssteamPlayNotOwned(enabled: bool = True, contentScriptQuery: str = "") -> str:
+    """Enable/disable SLSsteam's PlayNotOwnedGames setting.
+
+    Writes ~/.config/SLSsteam/config.yaml. Takes effect on next Steam start.
+    (Ported from upstream LuaToolsLinux.)
+    """
+    import json as _json
+    if sys.platform.startswith("win"):
+        return _json.dumps({"success": False, "error": "Linux only"})
+    try:
+        import slssteam_config as _sc
+        _sc.set_play_not_owned(bool(enabled))
+        return _json.dumps({
+            "success": True,
+            "playNotOwnedGames": _sc.is_play_not_owned_enabled(),
+            "note": "Restart Steam for the change to take effect.",
+        })
+    except Exception as exc:
+        return _json.dumps({"success": False, "error": str(exc)})
+
+
+def SelfHealUI(contentScriptQuery: str = "") -> str:
+    """Self-heal the Steam UI by injecting luatools.js into steamui/index.html.
+
+    Fallback for when Millennium's plugin loader doesn't load our frontend
+    (common on Millennium betas). luatools.js has an idempotency guard so this
+    is safe even if Millennium also loads it. (Ported from upstream
+    LuaToolsLinux ui_injector.)
+    """
+    import json as _json
+    if sys.platform.startswith("win"):
+        return _json.dumps({"success": False, "error": "Linux only"})
+    try:
+        import ui_injector as _ui
+        return _json.dumps(_ui.ensure_ui_injection())
+    except Exception as exc:
+        return _json.dumps({"success": False, "error": str(exc)})
+
+
+def RemoveUIInjection(contentScriptQuery: str = "") -> str:
+    """Remove the self-heal injection block from steamui/index.html (clean undo)."""
+    import json as _json
+    if sys.platform.startswith("win"):
+        return _json.dumps({"success": False, "error": "Linux only"})
+    try:
+        import ui_injector as _ui
+        return _json.dumps(_ui.remove_ui_injection())
+    except Exception as exc:
+        return _json.dumps({"success": False, "error": str(exc)})
+
+
+def RepairSteamLauncher(confirm: bool = False, contentScriptQuery: str = "") -> str:
+    """EXPLICIT, destructive: remove a broken 32-bit SLSsteam LD_AUDIT line from
+    steam.sh (backs up first). Only needed when SLSsteam's .so is 32-bit and
+    crashing Steam's launcher. Requires confirm=True. Never runs automatically.
+    """
+    import json as _json
+    if sys.platform.startswith("win"):
+        return _json.dumps({"success": False, "error": "Linux only"})
+    try:
+        import ui_injector as _ui
+        return _json.dumps(_ui.repair_steam_launcher(confirm=bool(confirm)))
+    except Exception as exc:
+        return _json.dumps({"success": False, "error": str(exc)})
+
+
+def GetSetupState(contentScriptQuery: str = "") -> str:
+    """First-run setup state: whether the user is ready to download, what can be
+    auto-fixed, and the one thing (if any) they must do themselves."""
+    import json as _json
+    try:
+        import setup_assistant as _sa
+        return _json.dumps(_sa.get_setup_state())
+    except Exception as exc:
+        return _json.dumps({"success": False, "error": str(exc)})
+
+
+def RunSetup(contentScriptQuery: str = "") -> str:
+    """Apply the safe, reversible setup fixes automatically, then return the
+    fresh setup state."""
+    import json as _json
+    try:
+        import setup_assistant as _sa
+        return _json.dumps(_sa.run_setup())
+    except Exception as exc:
+        return _json.dumps({"success": False, "error": str(exc)})
+
+
+def MarkSetupSeen(contentScriptQuery: str = "") -> str:
+    """Record that the setup assistant has been seen (so it won't auto-show)."""
+    import json as _json
+    try:
+        import setup_assistant as _sa
+        return _json.dumps({"success": _sa.mark_setup_seen()})
+    except Exception as exc:
+        return _json.dumps({"success": False, "error": str(exc)})
+
+
+def SelfHeal(contentScriptQuery: str = "") -> str:
+    """Quietly re-apply safe setup state that regressed (runs on load). Only
+    touches SLSsteam's own config + plugin dirs — never Steam's files. No-op
+    until setup has been completed once."""
+    import json as _json
+    try:
+        import setup_assistant as _sa
+        return _json.dumps(_sa.self_heal())
+    except Exception as exc:
+        return _json.dumps({"success": False, "error": str(exc)})
+
+
+def AutoFinalizeActivation(appid: int = 0, contentScriptQuery: str = "") -> str:
+    """After activating a game, automatically apply safe setup (enable
+    PlayNotOwnedGames if needed) and start the download on the running Steam —
+    one step, no restart, no manual checklist. Returns a single clear result;
+    stops with a 'blocker' only for things that can't be auto-fixed safely
+    (no activation tool / SLSsteam not injected).
+    """
+    import json as _json
+    try:
+        import live_apply as _la
+        return _json.dumps(_la.auto_finalize_activation(int(appid)))
+    except Exception as exc:
+        return _json.dumps({"success": False, "error": str(exc)})
+
+
+def StartDownloadNoRestart(appid: int = 0, contentScriptQuery: str = "") -> str:
+    """Start downloading an already-activated game on a RUNNING Steam, with no
+    restart. SLSsteam already serves ownership + keys live from the .lua; this
+    hands steam://install/<appid> to the OS so Steam re-checks ownership and
+    opens the download. (config.vdf-based changes still need Steam closed.)
+    """
+    import json as _json
+    try:
+        import live_apply as _la
+        return _json.dumps(_la.trigger_steam_install(int(appid)))
+    except Exception as exc:
+        return _json.dumps({"success": False, "error": str(exc)})
+
+
+def GetLinuxHealthReport(appid: int = 0, contentScriptQuery: str = "") -> str:
+    """Full preflight diagnostic: checks every activation/download prerequisite
+    (Steam, activation tool, SLSsteam injection, PlayNotOwnedGames, dirs,
+    network, deps) and returns a severity-ranked report with one-click fixes.
+    Optionally pass an appid to also audit that game's .lua (ownership + keys).
+    Read-only — diagnoses, never changes anything.
+    """
+    import json as _json
+    try:
+        import health as _h
+        return _json.dumps(_h.run_health_check(appid=int(appid) or None))
+    except Exception as exc:
+        return _json.dumps({"success": False, "error": str(exc)})
 
 
 def SetSentinelConfig(config_json: str = "{}", contentScriptQuery: str = "") -> str:

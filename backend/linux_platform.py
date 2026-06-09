@@ -81,8 +81,12 @@ def get_slssteam_install_dir() -> str:
     return os.path.expanduser("~/.local/share/SLSsteam")
 
 
+def get_slssteam_config_dir() -> str:
+    return os.path.expanduser("~/.config/SLSsteam")
+
+
 def get_slssteam_config_path() -> str:
-    return os.path.expanduser("~/.config/SLSsteam/config.yaml")
+    return os.path.join(get_slssteam_config_dir(), "config.yaml")
 
 
 def check_slssteam_installed() -> bool:

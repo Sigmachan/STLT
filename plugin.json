@@ -2,8 +2,8 @@
     "$schema": "https://raw.githubusercontent.com/SteamClientHomebrew/Millennium/main/src/sys/plugin-schema.json",
     "name": "luatools",
     "common_name": "LuaTools Ultimate",
-    "description": "LuaTools Ultimate v9.1.0 (Win+Linux, Millennium 3.0). FIX: ManifestHub API path no longer emits empty-key .lua activations that block real downloads; defers to keyed sources so games actually download via SLSsteam/Steam.",
-    "version": "9.1.0-dev11",
+    "description": "LuaTools Ultimate 10.0.0 \u2014 \"It Just Works\". Activate a game and it auto-downloads on the running Steam, no restart, watched or not. First-run setup assistant guides you to ready (auto-applies safe fixes; shows the one manual step). Quiet self-healing maintains your setup. The menu breathes: ~17 advanced tools fold behind one toggle. Health Scan leads with a system-setup section + one-click fixes. 63-test regression suite. Safety line held: never auto-edits steam.sh / config.vdf / steamui. See CHANGELOG.md.",
+    "version": "10.0.0",
     "backendType": "lua",
     "include": [
         "public"
