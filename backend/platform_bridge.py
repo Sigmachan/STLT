@@ -16,6 +16,7 @@ Adapted in part from the LuaToolsLinux fork by StarWarsK and geovanygrdt.
 from __future__ import annotations
 
 import os
+import re
 import sys
 
 
@@ -39,6 +40,11 @@ def _detect_steam_path_fallback() -> str:
         if path and os.path.isdir(path):
             return os.path.realpath(path)
     return ""
+
+
+def _cmp_version_parts(version: str) -> tuple[int, ...]:
+    """Return a numeric tuple for simple dotted version strings."""
+    return tuple(int(part) for part in re.findall(r"\d+", str(version))) or (0,)
 
 
 class _MillenniumFallback:
@@ -67,6 +73,27 @@ class _MillenniumFallback:
     @staticmethod
     def version() -> str:
         return "standalone-bridge"
+
+    @staticmethod
+    def get_install_path() -> str:
+        return _MillenniumFallback.steam_path()
+
+    @staticmethod
+    def remove_browser_module(_module_id: str) -> None:
+        return None
+
+    @staticmethod
+    def cmp_version(left: str, right: str) -> int:
+        left_parts = _cmp_version_parts(left)
+        right_parts = _cmp_version_parts(right)
+        max_len = max(len(left_parts), len(right_parts))
+        left_padded = left_parts + (0,) * (max_len - len(left_parts))
+        right_padded = right_parts + (0,) * (max_len - len(right_parts))
+        return (left_padded > right_padded) - (left_padded < right_padded)
+
+    @staticmethod
+    def is_plugin_enabled(_name: str) -> bool:
+        return True
 
 
 try:
@@ -119,8 +146,18 @@ def install_standalone_shims() -> None:
 
     if "Millennium" not in sys.modules:
         mod = types.ModuleType("Millennium")
-        for attr in ("steam_path", "add_browser_js", "add_browser_css",
-                     "ready", "call_frontend_method", "version"):
+        for attr in (
+            "steam_path",
+            "add_browser_js",
+            "add_browser_css",
+            "ready",
+            "call_frontend_method",
+            "version",
+            "get_install_path",
+            "remove_browser_module",
+            "cmp_version",
+            "is_plugin_enabled",
+        ):
             setattr(mod, attr, getattr(Millennium, attr))
         sys.modules["Millennium"] = mod
 
