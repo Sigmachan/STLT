@@ -174,9 +174,30 @@ def auto_finalize_activation(appid: int) -> Dict[str, Any]:
         except Exception as exc:
             logger.warn(f"live_apply: prerequisite check skipped: {exc}")
 
-    # 4. Start the download on the running Steam (no restart).
-    trig = trigger_steam_install(appid)
+    # 4. Start the download. Two mechanisms, picked by what's installed:
+    #    - ACCELA present: the bundle was already handed to ACCELA during
+    #      activation, so ACCELA is downloading. Don't also fire steam://install
+    #      (it would pop a redundant Steam dialog).
+    #    - SLSsteam-only: poke Steam via steam://install so it re-checks
+    #      ownership (SLSsteam answers "owned") and downloads.
+    accela = False
+    try:
+        import accela_launcher
+        accela = accela_launcher.is_available()
+    except Exception:
+        accela = False
 
+    if accela:
+        msg = (f"ACCELA is downloading {appid} — no restart needed.")
+        if auto_fixed:
+            msg = "Auto-setup: " + "; ".join(auto_fixed) + ". " + msg
+        return {
+            "success": True, "appid": appid, "autoFixed": auto_fixed,
+            "downloadTriggered": True, "downloader": "accela",
+            "warnings": [], "message": msg,
+        }
+
+    trig = trigger_steam_install(appid)
     msg = trig.get("message", "")
     if auto_fixed:
         msg = "Auto-setup: " + "; ".join(auto_fixed) + ". " + msg
@@ -185,6 +206,7 @@ def auto_finalize_activation(appid: int) -> Dict[str, Any]:
         "appid": appid,
         "autoFixed": auto_fixed,
         "downloadTriggered": bool(trig.get("triggered")),
+        "downloader": "slssteam",
         "steam_running": trig.get("steam_running"),
         "warnings": trig.get("warnings", []),
         "message": msg or trig.get("message", ""),

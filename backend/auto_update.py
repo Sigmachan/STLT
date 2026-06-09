@@ -29,6 +29,7 @@ except Exception:  # pragma: no cover - security module should be bundled
 from steam_utils import detect_steam_install_path
 from utils import (
     get_plugin_version,
+    is_newer_version,
     parse_version,
     read_json,
     write_json,
@@ -94,7 +95,7 @@ def _fetch_github_latest(cfg: Dict[str, Any]) -> Dict[str, Any]:
     token = str(cfg.get("token", "")).strip()
 
     if not owner or not repo:
-        logger.warn("AutoUpdate: github config missing owner or repo")
+        logger.log("AutoUpdate: disabled (no repo configured) — skipping update check")
         return {}
 
     client = ensure_http_client("AutoUpdate: GitHub")
@@ -122,19 +123,11 @@ def _fetch_github_latest(cfg: Dict[str, Any]) -> Dict[str, Any]:
         tag_name = str(data.get("tag_name", "")).strip()
         logger.log("AutoUpdate: GitHub API request successful")
     except Exception as api_err:
-        logger.warn(f"AutoUpdate: GitHub API failed ({api_err}), trying proxy...")
-        try:
-            proxy_url = "https://luatools.vercel.app/api/github-latest"
-            logger.log(f"AutoUpdate: Fetching GitHub release from proxy {proxy_url}")
-            resp = client.get(proxy_url, follow_redirects=True, timeout=15)
-            logger.log(f"AutoUpdate: Proxy GitHub API response: status={resp.status_code}")
-            resp.raise_for_status()
-            data = resp.json()
-            tag_name = str(data.get("tag_name", "")).strip()
-            logger.log("AutoUpdate: Proxy GitHub request successful")
-        except Exception as proxy_err:
-            logger.warn(f"AutoUpdate: Proxy request failed ({proxy_err})")
-            return {}
+        # No upstream-proxy fallback: that proxy serves the UPSTREAM repo's
+        # release, which would conflate this fork with a different codebase.
+        # On API failure we simply skip this cycle and try again later.
+        logger.warn(f"AutoUpdate: GitHub API failed ({api_err}); skipping this check")
+        return {}
 
     if not data:
         return {}
@@ -156,12 +149,11 @@ def _fetch_github_latest(cfg: Dict[str, Any]) -> Dict[str, Any]:
     except Exception:
         pass
 
-    if not zip_url and tag_name:
-        zip_url = f"https://luatools.vercel.app/api/get-plugin/{tag_name}"
-        logger.log(f"AutoUpdate: Using proxy download URL: {zip_url}")
-
     if not zip_url:
-        logger.warn("AutoUpdate: No download URL found")
+        # Require a real release asset on THIS repo. No upstream-proxy guessing
+        # (it would download a different codebase). If you publish a release,
+        # attach the plugin zip named to match `asset_name` in update.json.
+        logger.log("AutoUpdate: no matching release asset found — skipping update")
         return {}
 
     return {"version": version, "zip_url": zip_url}
@@ -219,9 +211,9 @@ def check_for_update_once() -> str:
         return ""
 
     current_version = get_plugin_version()
-    if parse_version(latest_version) <= parse_version(current_version):
+    if not is_newer_version(latest_version, current_version):
         logger.log(
-            f"AutoUpdate: Up-to-date (current {current_version}, latest {latest_version})"
+            f"AutoUpdate: Up-to-date (current {current_version}, latest {latest_version}) — not downgrading"
         )
         return ""
 

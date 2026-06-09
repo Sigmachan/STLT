@@ -109,6 +109,14 @@ class TestAutoFinalize(unittest.TestCase):
         self.opened = []
         self.la._open_url = lambda url: (self.opened.append(url) or True)
 
+        # Control ACCELA availability deterministically (default: not present,
+        # so these tests exercise the SLSsteam / steam:// path).
+        self._accela = False
+        import types as _t
+        accela_stub = _t.ModuleType("accela_launcher")
+        accela_stub.is_available = lambda: self._accela
+        sys.modules["accela_launcher"] = accela_stub
+
         stubs.slssteam_installed = True
         stubs.slssteam_injected = True
         stubs.accela_installed = False
@@ -125,6 +133,7 @@ class TestAutoFinalize(unittest.TestCase):
         import shutil
         shutil.rmtree(self.tmp, ignore_errors=True)
         sys.modules.pop("settings.manager", None)
+        sys.modules.pop("accela_launcher", None)
 
     def test_happy_path_triggers_download(self):
         res = self.la.auto_finalize_activation(570)
@@ -182,6 +191,24 @@ class TestAutoFinalize(unittest.TestCase):
         # Unknown key falls back to the supplied default.
         self.assertTrue(self.la._setting_enabled("nonexistentKey", True))
         self.assertFalse(self.la._setting_enabled("nonexistentKey", False))
+
+    def test_prefers_accela_when_available(self):
+        # When ACCELA is the downloader, auto-finalize must NOT fire steam://
+        # install (download already happened at activation); it reports ACCELA.
+        self._accela = True
+        res = self.la.auto_finalize_activation(570)
+        self.assertTrue(res["success"])
+        self.assertTrue(res["downloadTriggered"])
+        self.assertEqual(res.get("downloader"), "accela")
+        self.assertEqual(self.opened, [],
+                         "must not fire steam://install when ACCELA is the downloader")
+        self.assertIn("ACCELA", res["message"])
+
+    def test_slssteam_path_when_no_accela(self):
+        self._accela = False
+        res = self.la.auto_finalize_activation(570)
+        self.assertEqual(res.get("downloader"), "slssteam")
+        self.assertEqual(self.opened, ["steam://install/570"])
 
 
 if __name__ == "__main__":

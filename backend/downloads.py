@@ -651,6 +651,23 @@ def _process_and_install_lua(appid: int, zip_path: str) -> None:
         logger.log(f"LuaTools: Installed lua -> {dest_file}")
         _set_download_state(appid, {"installedPath": dest_file})
 
+    # Restore the upstream mechanism: hand the bundle to ACCELA so it actually
+    # downloads the game. Keeps the .lua install above for SLSsteam users; this
+    # adds the ACCELA download path STLT had dropped. Best-effort + isolated so
+    # it can never break activation. ACCELA gets its own copy of the zip, so the
+    # cleanup below is safe.
+    try:
+        import accela_launcher
+        if accela_launcher.is_available():
+            res = accela_launcher.run_with_zip(zip_path)
+            if res.get("invoked"):
+                _set_download_state(appid, {"accelaInvoked": True})
+                logger.log(f"LuaTools: handed {appid} bundle to ACCELA for download")
+            else:
+                logger.warn(f"LuaTools: ACCELA not invoked: {res.get('reason')}")
+    except Exception as exc:
+        logger.warn(f"LuaTools: ACCELA invocation skipped: {exc}")
+
     _safe_remove(zip_path)
 
     # Linux: auto-activate via ACF + config.vdf (ported from SteaMidra)

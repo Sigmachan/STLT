@@ -1543,6 +1543,27 @@ def MarkSetupSeen(contentScriptQuery: str = "") -> str:
         return _json.dumps({"success": False, "error": str(exc)})
 
 
+def GetAccelaInfo(contentScriptQuery: str = "") -> str:
+    """Report whether ACCELA (the Linux downloader) is found and where."""
+    import json as _json
+    try:
+        import accela_launcher as _al
+        return _json.dumps({"success": True, **_al.get_status()})
+    except Exception as exc:
+        return _json.dumps({"success": False, "error": str(exc)})
+
+
+def SetAccelaPath(path: str = "", contentScriptQuery: str = "") -> str:
+    """Point STLT at ACCELA's run.sh explicitly (when auto-detection misses it)."""
+    import json as _json
+    try:
+        import accela_launcher as _al
+        ok = _al.set_launcher_path(path)
+        return _json.dumps({"success": ok, **_al.get_status()})
+    except Exception as exc:
+        return _json.dumps({"success": False, "error": str(exc)})
+
+
 def SelfHeal(contentScriptQuery: str = "") -> str:
     """Quietly re-apply safe setup state that regressed (runs on load). Only
     touches SLSsteam's own config + plugin dirs — never Steam's files. No-op

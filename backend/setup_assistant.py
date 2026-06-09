@@ -89,10 +89,11 @@ def _classify(report: Dict[str, Any]):
 
 def get_setup_state() -> Dict[str, Any]:
     """Snapshot of whether the user is ready, what we can auto-fix, and what
-    they must do themselves."""
+    they must do themselves. Uses the quick health path (no network probe) so
+    it never gates UI init on a network round-trip."""
     try:
         from health import run_health_check
-        report = run_health_check()
+        report = run_health_check(quick=True)
     except Exception as exc:
         return {"success": False, "error": str(exc)}
 
@@ -114,7 +115,7 @@ def run_setup() -> Dict[str, Any]:
     applied: List[str] = []
     try:
         from health import run_health_check
-        report = run_health_check()
+        report = run_health_check(quick=True)
         auto_fixable, _ = _classify(report)
         for fx in auto_fixable:
             if _apply_safe_fix(fx["ipc"], fx["args"]):

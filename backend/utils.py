@@ -87,6 +87,28 @@ def parse_version(version: str) -> tuple:
         return (0,)
 
 
+def _normalize_semver(version: str) -> tuple:
+    """Normalize any version-ish string to a (major, minor, patch) int tuple.
+    Pads/truncates to exactly 3 components so comparisons are stable regardless
+    of pre-release suffixes or extra segments (e.g. '10.2.2-dev5' -> (10,2,2))."""
+    nums = [int(n) for n in re.findall(r"\d+", str(version))]
+    nums = (nums + [0, 0, 0])[:3]
+    return tuple(nums)
+
+
+def is_newer_version(latest: str, current: str) -> bool:
+    """True only if `latest` is a real version STRICTLY newer than `current`.
+
+    Downgrade-proof by construction: a blank or non-numeric `latest` never
+    wins, and equal versions (including pre-release suffixes on the same
+    major.minor.patch) are not considered newer. This is what stops the updater
+    from ever pulling an older GitHub release over a newer local build."""
+    s = str(latest).strip()
+    if not s or not re.search(r"\d", s):
+        return False
+    return _normalize_semver(latest) > _normalize_semver(current)
+
+
 def get_plugin_version() -> str:
     try:
         plugin_json_path = os.path.join(get_plugin_dir(), "plugin.json")

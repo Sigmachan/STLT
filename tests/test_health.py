@@ -112,6 +112,23 @@ class TestHealth(unittest.TestCase):
         self.assertIsInstance(out, str)
         self.assertIn("LuaTools Health", out)
 
+    def test_quick_mode_skips_network_probe(self):
+        # Architectural: the UI-init gate must not block on a network round-trip.
+        calls = {"n": 0}
+        real = self.health._chk_network
+        self.health._chk_network = lambda: (calls.__setitem__("n", calls["n"] + 1)
+                                            or {"id": "network", "label": "Network",
+                                                "status": "ok", "detail": ""})
+        try:
+            quick = self.health.run_health_check(quick=True)
+            self.assertEqual(calls["n"], 0, "quick mode must NOT run the network probe")
+            self.assertNotIn("network", [c["id"] for c in quick["checks"]])
+            full = self.health.run_health_check(quick=False)
+            self.assertEqual(calls["n"], 1, "full mode must run the network probe")
+            self.assertIn("network", [c["id"] for c in full["checks"]])
+        finally:
+            self.health._chk_network = real
+
 
 if __name__ == "__main__":
     unittest.main()

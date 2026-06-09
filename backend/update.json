@@ -1,7 +1,8 @@
 {
-  "github": {
-    "owner": "madoiscool",
-    "repo": "ltsteamplugin",
-    "asset_name": "ltsteamplugin.zip"
-  }
+    "_comment": "Auto-update checks YOUR fork (Sigmachan/STLT). It is downgrade-proof: it only updates when a GitHub RELEASE exists whose version is strictly newer than the running build, AND that release has an attached asset named to match asset_name below. Because you run ahead of your releases, it will normally report up-to-date and do nothing. To publish an update: cut a GitHub release with a tag >= the version, and attach the plugin zip named 'STLT.zip'. To disable updates entirely, blank owner/repo.",
+    "github": {
+        "owner": "Sigmachan",
+        "repo": "STLT",
+        "asset_name": "STLT.zip"
+    }
 }

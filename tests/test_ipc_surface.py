@@ -26,6 +26,8 @@ CANONICAL_IPCS = {
     "RunSetup": "first-run assistant: apply the safe fixes",
     "MarkSetupSeen": "first-run assistant: remember it's been seen",
     "SelfHeal": "quiet self-healing of regressed setup on load",
+    "GetAccelaInfo": "ACCELA downloader status (found / path) for UI + health",
+    "SetAccelaPath": "let the user point at ACCELA's run.sh when auto-detect misses it",
 }
 
 

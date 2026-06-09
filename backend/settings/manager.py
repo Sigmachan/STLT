@@ -52,26 +52,57 @@ _detected_steam_lang: Optional[str] = None
 _detected_steam_lang_checked: bool = False
 
 
+def _steam_language_from_vdf() -> Optional[str]:
+    """Read Steam's UI language on Linux/macOS from registry.vdf (no winreg)."""
+    import re
+    candidates = [
+        os.path.expanduser("~/.steam/registry.vdf"),
+        os.path.expanduser("~/.steam/steam/registry.vdf"),
+        os.path.expanduser("~/.local/share/Steam/registry.vdf"),
+    ]
+    for path in candidates:
+        try:
+            if os.path.isfile(path):
+                with open(path, "r", encoding="utf-8", errors="ignore") as f:
+                    text = f.read()
+                m = re.search(r'"language"\s*"([^"]+)"', text, re.IGNORECASE)
+                if m:
+                    return m.group(1)
+        except Exception:
+            continue
+    return None
+
+
 def _detect_steam_language() -> Optional[str]:
-    """Read Steam's UI language from the Windows registry and map it to a plugin locale code.
-    Result is cached for the lifetime of the process (Steam language doesn't change at runtime)."""
+    """Detect Steam's UI language and map it to a plugin locale code.
+
+    Cross-platform: Windows reads the registry; Linux/macOS read Steam's
+    registry.vdf (the Windows `winreg` module doesn't exist there). Cached for
+    the process lifetime (Steam language doesn't change at runtime)."""
     global _detected_steam_lang, _detected_steam_lang_checked
     if _detected_steam_lang_checked:
         return _detected_steam_lang
     _detected_steam_lang_checked = True
-    try:
-        import winreg
-        with winreg.OpenKey(winreg.HKEY_CURRENT_USER, r"Software\Valve\Steam") as key:
-            steam_lang, _ = winreg.QueryValueEx(key, "Language")
-            steam_lang = str(steam_lang).strip().lower()
-            locale_code = _STEAM_LANG_TO_LOCALE.get(steam_lang)
-            if locale_code:
-                logger.log(f"LuaTools: detected Steam language '{steam_lang}' -> locale '{locale_code}'")
-                _detected_steam_lang = locale_code
-                return locale_code
-            logger.log(f"LuaTools: Steam language '{steam_lang}' has no matching locale, using default")
-    except Exception as exc:
-        logger.log(f"LuaTools: could not read Steam language from registry: {exc}")
+
+    raw_lang = None
+    if os.name == "nt":
+        try:
+            import winreg
+            with winreg.OpenKey(winreg.HKEY_CURRENT_USER, r"Software\Valve\Steam") as key:
+                raw_lang, _ = winreg.QueryValueEx(key, "Language")
+        except Exception as exc:
+            logger.log(f"LuaTools: could not read Steam language from registry: {exc}")
+    else:
+        raw_lang = _steam_language_from_vdf()
+
+    if raw_lang:
+        steam_lang = str(raw_lang).strip().lower()
+        locale_code = _STEAM_LANG_TO_LOCALE.get(steam_lang)
+        if locale_code:
+            logger.log(f"LuaTools: detected Steam language '{steam_lang}' -> locale '{locale_code}'")
+            _detected_steam_lang = locale_code
+            return locale_code
+        logger.log(f"LuaTools: Steam language '{steam_lang}' has no matching locale, using default")
     return None
 
 from .options import (

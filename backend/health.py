@@ -317,8 +317,14 @@ def _chk_app(appid: int) -> List[Dict[str, Any]]:
 
 # ── Aggregator ──────────────────────────────────────────────────────────────
 
-def run_health_check(appid: Optional[int] = None) -> Dict[str, Any]:
-    """Run every check and return a structured, actionable report."""
+def run_health_check(appid: Optional[int] = None, quick: bool = False) -> Dict[str, Any]:
+    """Run every check and return a structured, actionable report.
+
+    quick=True skips the network probe (a ~6s-timeout round-trip). Use it on the
+    UI-init path (the setup gate), where network reachability is only a 'warn'
+    and so never changes the ready/blocker verdict — it shouldn't gate interface
+    readiness on a network call. The full Health Scan uses quick=False.
+    """
     checks: List[Dict[str, Any]] = [
         _chk_platform(),
         _chk_steam_root(),
@@ -330,8 +336,9 @@ def run_health_check(appid: Optional[int] = None) -> Dict[str, Any]:
         _chk_installed_lua(),
         _chk_ui_injection(),
         _chk_python_deps(),
-        _chk_network(),
     ]
+    if not quick:
+        checks.append(_chk_network())
     if appid:
         try:
             checks.extend(_chk_app(int(appid)))
